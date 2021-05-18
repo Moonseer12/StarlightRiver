@@ -63,7 +63,10 @@ This code is more spaced out.
 ## Miscellaneous
 * Ensure if/else/for/while statements are on different lines to their blocks, although it is acceptable to not include the curly braces if the block can be cleanly expressed in one line.
 * Make regular use of local variables; this not only avoids repeated code but it's just easier to tell what the code is doing.
-* In the case of projectile and NPC AI arrays, make sure you alias them with ref properties (private ref float Timer => ref npc.ai[0];) for readability.
+* In the case of projectile and NPC AI arrays, make sure you alias them with ref properties for ease of understanding:
+```cs
+private ref float Timer => ref npc.ai[0];
+```
 * Leave comments where necessary, preferably in the form of the triple-slash XML documentation where possible. This codebase is maintained by multiple people and ideally someone shouldn't need to ask what your code is supposed to do.
 * Give variables sensible names that describe what they do, likewise with classes.
 
