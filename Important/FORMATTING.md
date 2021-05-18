@@ -1,9 +1,9 @@
-### Formatting Guide
+# Formatting Guide
 
 ## Captialisation
 Capitalisation should follow standard C# conventions - the main ones being:
 
-# Pascal Case:
+### Pascal Case:
 * Class names
 * Method names
 * Property names
@@ -11,7 +11,7 @@ Capitalisation should follow standard C# conventions - the main ones being:
 * Names of constants
 * Names of delegates
 
-# Camel Case:
+### Camel Case:
 * Names of non-public fields
 * Names of local variables
 
