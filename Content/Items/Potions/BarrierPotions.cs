@@ -63,11 +63,7 @@ namespace StarlightRiver.Content.Items.Potions
 
 		public override void AddRecipes()
 		{
-			Recipe recipe = CreateRecipe();
-			recipe.AddIngredient(ModContent.ItemType<Slimeberry>(), 2);
-			recipe.AddIngredient(ItemID.Glass, 5);
-			recipe.AddIngredient(ItemID.BottledWater);
-			recipe.AddTile(TileID.Bottles);
+			CreateRecipe().AddIngredient(ModContent.ItemType<Slimeberry>(), 2).AddIngredient(ItemID.Glass, 5).AddIngredient(ItemID.BottledWater).AddTile(TileID.Bottles).Register();
 		}
 	}
 
@@ -77,11 +73,7 @@ namespace StarlightRiver.Content.Items.Potions
 
 		public override void AddRecipes()
 		{
-			Recipe recipe = CreateRecipe(5);
-			recipe.AddIngredient(ModContent.ItemType<LesserBarrierPotion>(), 5);
-			recipe.AddIngredient(ModContent.ItemType<VitricOre>(), 2);
-			recipe.AddIngredient(ItemID.GlowingMushroom, 2);
-			recipe.AddTile(TileID.Bottles);
+			CreateRecipe(5).AddIngredient(ModContent.ItemType<LesserBarrierPotion>(), 5).AddIngredient(ModContent.ItemType<VitricOre>(), 2).AddIngredient(ItemID.GlowingMushroom, 2).AddTile(TileID.Bottles).Register();
 		}
 	}
 
@@ -91,18 +83,9 @@ namespace StarlightRiver.Content.Items.Potions
 
 		public override void AddRecipes()
 		{
-			Recipe recipe = CreateRecipe(5);
-			recipe.AddIngredient(ModContent.ItemType<RegularBarrierPotion>(), 5);
-			recipe.AddIngredient(ItemID.SoulofLight);
-			recipe.AddIngredient(ItemID.SoulofNight);
-			recipe.AddTile(TileID.Bottles);
+			CreateRecipe(5).AddIngredient(ModContent.ItemType<RegularBarrierPotion>(), 5).AddIngredient(ItemID.SoulofLight).AddIngredient(ItemID.SoulofNight).AddTile(TileID.Bottles).Register();
 
-			recipe = CreateRecipe(5);
-			recipe.AddIngredient(ItemID.BottledWater, 5);
-			recipe.AddIngredient(ModContent.ItemType<Slimeberry>(), 10);
-			recipe.AddIngredient(ItemID.SoulofLight);
-			recipe.AddIngredient(ItemID.SoulofNight);
-			recipe.AddTile(TileID.Bottles);
+			CreateRecipe(5).AddIngredient(ItemID.BottledWater, 5).AddIngredient(ModContent.ItemType<Slimeberry>(), 10).AddIngredient(ItemID.SoulofLight).AddIngredient(ItemID.SoulofNight).AddTile(TileID.Bottles).Register();
 		}
 	}
 

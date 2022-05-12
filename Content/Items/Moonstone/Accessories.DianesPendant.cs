@@ -50,10 +50,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 		public override void AddRecipes()
 		{
-			Recipe recipe = CreateRecipe();
-			recipe.AddIngredient(ModContent.ItemType<MoonstoneBarItem>(), 4);
-			recipe.AddIngredient(ModContent.ItemType<AquaSapphire>(), 1);
-			recipe.AddTile(TileID.Anvils);
+			CreateRecipe().AddIngredient(ModContent.ItemType<MoonstoneBarItem>(), 4).AddIngredient(ModContent.ItemType<AquaSapphire>(), 1).AddTile(TileID.Anvils).Register();
 		}
 	}
 	internal class DianePlayer : ModPlayer

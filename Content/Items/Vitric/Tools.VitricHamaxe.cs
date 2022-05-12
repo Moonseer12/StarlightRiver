@@ -125,10 +125,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<SandstoneChunk>(), 10);
-            recipe.AddIngredient(ItemType<VitricOre>(), 20);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<SandstoneChunk>(), 10).AddIngredient(ItemType<VitricOre>(), 20).AddTile(TileID.Anvils).Register();
         }
     }
 }

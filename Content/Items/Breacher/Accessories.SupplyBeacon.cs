@@ -42,10 +42,7 @@ namespace StarlightRiver.Content.Items.Breacher
 
 		public override void AddRecipes()
 		{
-			Recipe recipe = CreateRecipe();
-			recipe.AddIngredient(ModContent.ItemType<Astroscrap>(), 10);
-			recipe.AddIngredient(ItemID.Wire, 15);
-			recipe.AddTile(TileID.Anvils);
+			CreateRecipe().AddIngredient(ModContent.ItemType<Astroscrap>(), 10).AddIngredient(ItemID.Wire, 15).AddTile(TileID.Anvils).Register();
 		}
 	}
 

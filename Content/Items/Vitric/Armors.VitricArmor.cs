@@ -139,11 +139,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<SandstoneChunk>(), 5);
-            recipe.AddIngredient(ItemType<VitricOre>(), 15);
-            recipe.AddIngredient(ItemType<MagmaCore>());
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<SandstoneChunk>(), 5).AddIngredient(ItemType<VitricOre>(), 15).AddIngredient(ItemType<MagmaCore>()).AddTile(TileID.Anvils).Register();
         }
     }
 
@@ -174,11 +170,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<SandstoneChunk>(), 5);
-            recipe.AddIngredient(ItemType<VitricOre>(), 25);
-            recipe.AddIngredient(ItemType<MagmaCore>());
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<SandstoneChunk>(), 5).AddIngredient(ItemType<VitricOre>(), 25).AddIngredient(ItemType<MagmaCore>()).AddTile(TileID.Anvils).Register();
         }
     }
 
@@ -209,11 +201,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<SandstoneChunk>(), 5);
-            recipe.AddIngredient(ItemType<VitricOre>(), 20);
-            recipe.AddIngredient(ItemType<MagmaCore>());
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<SandstoneChunk>(), 5).AddIngredient(ItemType<VitricOre>(), 20).AddIngredient(ItemType<MagmaCore>()).AddTile(TileID.Anvils).Register();
         }
     }
 }

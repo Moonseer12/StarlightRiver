@@ -60,9 +60,7 @@ namespace StarlightRiver.Content.Items.ForestIvy
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ModContent.ItemType<Ivy>(), 8);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ModContent.ItemType<Ivy>(), 8).AddTile(TileID.Anvils).Register();
         }
     }
 

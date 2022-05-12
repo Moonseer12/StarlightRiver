@@ -58,12 +58,7 @@ namespace StarlightRiver.Content.Items.Misc
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-
-            recipe.AddIngredient(ModContent.ItemType<DisinfectantWipes>());
-            recipe.AddIngredient(ModContent.ItemType<SanitizerSpray>());
-
-            recipe.AddTile(TileID.TinkerersWorkbench);
+            CreateRecipe().AddIngredient(ModContent.ItemType<DisinfectantWipes>()).AddIngredient(ModContent.ItemType<SanitizerSpray>()).AddTile(TileID.TinkerersWorkbench).Register();
         }
     }
 }

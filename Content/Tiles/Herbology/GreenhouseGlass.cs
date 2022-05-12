@@ -30,14 +30,9 @@ namespace StarlightRiver.Content.Tiles.Herbology
 
         public override void AddRecipes()
         {
-            //Recipe recipe = CreateRecipe();
-            //recipe.AddIngredient(ItemID.Glass, 10);
-            //recipe.AddIngredient(ModContent.ItemType<AluminumBarItem>(), 1);
-            //recipe.AddTile(TileID.WorkBenches);
+            CreateRecipe().AddIngredient(ItemID.Glass, 10).AddIngredient(ModContent.ItemType<Items.Moonstone.MoonstoneOreItem>()).AddTile(TileID.WorkBenches).Register();
 
-            //recipe = CreateRecipe();
-            //recipe.AddIngredient(ModContent.ItemType<GreenhouseWallItem>(), 4);
-            //recipe.AddTile(TileID.WorkBenches);
+            CreateRecipe().AddIngredient(ModContent.ItemType<GreenhouseWallItem>(), 4).AddTile(TileID.WorkBenches).Register();
         }
     }
 
@@ -58,9 +53,7 @@ namespace StarlightRiver.Content.Tiles.Herbology
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe(4);//1 tile to 4 wall
-            recipe.AddIngredient(ModContent.ItemType<GreenhouseGlassItem>(), 1);
-            recipe.AddTile(TileID.WorkBenches);
+            CreateRecipe(4).AddIngredient(ModContent.ItemType<GreenhouseGlassItem>(), 1).AddTile(TileID.WorkBenches).Register();
         }
     }
 }

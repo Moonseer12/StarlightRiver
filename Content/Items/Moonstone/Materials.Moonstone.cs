@@ -22,19 +22,10 @@ namespace StarlightRiver.Content.Items.Moonstone
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<MoonstoneOreItem>(), 3);
-            recipe.AddTile(TileID.Furnaces);
+            CreateRecipe().AddIngredient(ItemType<MoonstoneOreItem>(), 3).AddTile(TileID.Furnaces).Register();
 
             //adds back neccisary vanilla recipies
-            Recipe recipe2 = Mod.CreateRecipe(ItemID.DrillContainmentUnit);
-            recipe2.AddIngredient(ItemID.LunarBar, 40);
-            recipe2.AddIngredient(ItemID.ChlorophyteBar, 40);
-            recipe2.AddIngredient(ItemID.ShroomiteBar, 40);
-            recipe2.AddIngredient(ItemID.SpectreBar, 40);
-            recipe2.AddIngredient(ItemID.HellstoneBar, 40);
-            recipe2.AddIngredient(ItemType<MoonstoneBarItem>(), 40);
-            recipe2.AddTile(TileID.MythrilAnvil);
+            Mod.CreateRecipe(ItemID.DrillContainmentUnit).AddIngredient(ItemID.LunarBar, 40).AddIngredient(ItemID.ChlorophyteBar, 40).AddIngredient(ItemID.ShroomiteBar, 40).AddIngredient(ItemID.SpectreBar, 40).AddIngredient(ItemID.HellstoneBar, 40).AddIngredient(ItemType<MoonstoneBarItem>(), 40).AddTile(TileID.MythrilAnvil).Register();
         }
     }
 }

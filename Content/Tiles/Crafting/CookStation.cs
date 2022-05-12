@@ -38,11 +38,7 @@ namespace StarlightRiver.Content.Tiles.Crafting
 
         public override void AddRecipes()
         {
-            CreateRecipe()
-            .AddIngredient(ItemID.Wood, 20)
-            .AddIngredient(RecipeGroupID.IronBar, 5)
-            .AddTile(TileID.WorkBenches)
-            .Register();
+            CreateRecipe().AddIngredient(ItemID.Wood, 20).AddIngredient(RecipeGroupID.IronBar, 5).AddTile(TileID.WorkBenches).Register();
         }
     }
 }

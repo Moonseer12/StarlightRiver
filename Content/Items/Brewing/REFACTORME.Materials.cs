@@ -17,11 +17,7 @@ namespace StarlightRiver.Items.Herbology.Materials
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe(3);
-            recipe.AddIngredient(ItemID.Daybloom, 1);
-            recipe.AddIngredient(ItemID.GrassSeeds, 1);
-            recipe.AddIngredient(ItemType<Ivy>(), 5);
-            recipe.AddTile(TileType<HerbStation>());
+            CreateRecipe(3).AddIngredient(ItemID.Daybloom, 1).AddIngredient(ItemID.GrassSeeds, 1).AddIngredient(ItemType<Ivy>(), 5).AddTile(TileType<HerbStation>()).Register();
         }
     }
 
@@ -35,11 +31,7 @@ namespace StarlightRiver.Items.Herbology.Materials
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe(3);
-            recipe.AddIngredient(ItemID.Deathweed, 1);
-            recipe.AddIngredient(ItemID.Shiverthorn, 1);
-            recipe.AddIngredient(ItemType<Deathstalk>(), 5);
-            recipe.AddTile(TileType<HerbStation>());
+            CreateRecipe(3).AddIngredient(ItemID.Deathweed, 1).AddIngredient(ItemID.Shiverthorn, 1).AddIngredient(ItemType<Deathstalk>(), 5).AddTile(TileType<HerbStation>()).Register();
         }
     }*/
 }

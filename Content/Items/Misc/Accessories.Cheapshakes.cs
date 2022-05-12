@@ -46,18 +46,9 @@ namespace StarlightRiver.Content.Items.Misc
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
+            CreateRecipe().AddIngredient(ItemID.Wood, 50).AddIngredient(ItemID.Chain, 10).AddIngredient(ItemID.DemoniteBar, 20).AddTile(TileID.IceMachine).Register();
 
-            recipe.AddIngredient(ItemID.Wood, 50);
-            recipe.AddIngredient(ItemID.Chain, 10);
-            recipe.AddIngredient(ItemID.DemoniteBar, 20);
-            recipe.AddTile(TileID.IceMachine);
-
-            recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.Wood, 50);
-            recipe.AddIngredient(ItemID.Chain, 10);
-            recipe.AddIngredient(ItemID.CrimtaneBar, 20);
-            recipe.AddTile(TileID.IceMachine);
+            CreateRecipe().AddIngredient(ItemID.Wood, 50).AddIngredient(ItemID.Chain, 10).AddIngredient(ItemID.CrimtaneBar, 20).AddTile(TileID.IceMachine).Register();
         }
     }
 }

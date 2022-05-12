@@ -31,9 +31,7 @@ namespace StarlightRiver.Content.Items.ForestIvy
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<Ivy>(), 8);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<Ivy>(), 8).AddTile(TileID.Anvils).Register();
         }
     }
 
@@ -70,9 +68,7 @@ namespace StarlightRiver.Content.Items.ForestIvy
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ModContent.ItemType<Ivy>(), 12);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ModContent.ItemType<Ivy>(), 12).AddTile(TileID.Anvils).Register();
         }
     }
 
@@ -99,9 +95,7 @@ namespace StarlightRiver.Content.Items.ForestIvy
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ModContent.ItemType<Ivy>(), 8);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ModContent.ItemType<Ivy>(), 8).AddTile(TileID.Anvils).Register();
         }
     }
 }

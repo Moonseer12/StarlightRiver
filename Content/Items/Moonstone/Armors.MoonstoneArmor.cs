@@ -245,9 +245,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<MoonstoneBarItem>(), 5);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<MoonstoneBarItem>(), 5).AddTile(TileID.Anvils).Register();
         }
     }
 
@@ -299,9 +297,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<MoonstoneBarItem>(), 15);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<MoonstoneBarItem>(), 15).AddTile(TileID.Anvils).Register();
         }
     }
 
@@ -354,9 +350,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemType<MoonstoneBarItem>(), 10);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemType<MoonstoneBarItem>(), 10).AddTile(TileID.Anvils).Register();
         }
     }
 

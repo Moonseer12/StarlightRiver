@@ -50,15 +50,9 @@ namespace StarlightRiver.Content.Items.Misc
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.ShadowScale, 5);
-            recipe.AddRecipeGroup(RecipeGroupID.IronBar, 10);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemID.ShadowScale, 5).AddRecipeGroup(RecipeGroupID.IronBar, 10).AddTile(TileID.Anvils).Register();
 
-            recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.TissueSample, 5);
-            recipe.AddRecipeGroup(RecipeGroupID.IronBar, 10);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ItemID.TissueSample, 5).AddRecipeGroup(RecipeGroupID.IronBar, 10).AddTile(TileID.Anvils).Register();
         }
     }
 }

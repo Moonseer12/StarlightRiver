@@ -48,11 +48,7 @@ namespace StarlightRiver.Content.Items.Misc
 		{
             RecipeSystem.allHiddenRecipes.Add(Name); //Hide this recipe
 
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.Sandstone, 10);
-            recipe.AddIngredient(ItemID.Topaz);
-            recipe.AddTile(TileID.Anvils);
-            recipe.Register();
+            CreateRecipe().AddIngredient(ItemID.Sandstone, 10).AddIngredient(ItemID.Topaz).AddTile(TileID.Anvils).Register();
 		}
 	}
 

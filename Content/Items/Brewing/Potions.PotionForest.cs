@@ -19,11 +19,7 @@ namespace StarlightRiver.Content.Items.Brewing
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.BottledWater, 1);
-            recipe.AddIngredient(ItemType<ForestBerries>(), 5);
-            recipe.AddIngredient(ItemType<Ivy>(), 20);
-            //recipe.AddTile(TileType<HerbStation>()); PORTTODO: Herb station doesn't exist anymore, replace it with something?
+            CreateRecipe().AddIngredient(ItemID.BottledWater, 1).AddIngredient(ItemType<ForestBerries>(), 5).AddIngredient(ItemType<Ivy>(), 20).Register();
         }
     }
 }

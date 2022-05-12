@@ -144,6 +144,7 @@ namespace StarlightRiver.Core
 
 
                 recipe.AddTile(TileID.WorkBenches);
+                recipe.Register();
             }
         }
     }

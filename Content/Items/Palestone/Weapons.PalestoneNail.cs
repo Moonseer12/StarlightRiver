@@ -56,9 +56,7 @@ namespace StarlightRiver.Content.Items.Palestone
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.UlyssesButterfly, 25);
-            recipe.AddTile(TileID.UlyssesButterflyJar);
+            CreateRecipe().AddIngredient(ItemID.UlyssesButterfly, 25).AddTile(TileID.UlyssesButterflyJar).Register();
         }
     }
 

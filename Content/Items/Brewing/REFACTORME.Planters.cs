@@ -33,11 +33,7 @@ namespace StarlightRiver.Items.Herbology
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe(10);
-            recipe.AddIngredient(ItemID.MudBlock, 10);
-            recipe.AddIngredient(ItemType<Ivy>(), 5);
-            recipe.AddIngredient(ItemID.CrystalShard, 1);
-            recipe.AddTile(TileID.Furnaces);
+            CreateRecipe(10).AddIngredient(ItemID.MudBlock, 10).AddIngredient(ItemType<Ivy>(), 5).AddIngredient(ItemID.CrystalShard, 1).AddTile(TileID.Furnaces).Register();
         }
     }
 
@@ -67,10 +63,7 @@ namespace StarlightRiver.Items.Herbology
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.Wood, 5);
-            recipe.AddIngredient(ItemType<Soil>(), 1);
-            recipe.AddTile(TileID.WorkBenches);
+            CreateRecipe().AddIngredient(ItemID.Wood, 5).AddIngredient(ItemType<Soil>(), 1).AddTile(TileID.WorkBenches).Register;
         }
     }
 
@@ -100,10 +93,7 @@ namespace StarlightRiver.Items.Herbology
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ItemID.ClayBlock, 5);
-            recipe.AddIngredient(ItemID.Chain, 1);
-            recipe.AddTile(TileID.WorkBenches);
+            CreateRecipe().AddIngredient(ItemID.ClayBlock, 5).AddIngredient(ItemID.Chain, 1).AddTile(TileID.WorkBenches).Register();
         }
     }*/
 }

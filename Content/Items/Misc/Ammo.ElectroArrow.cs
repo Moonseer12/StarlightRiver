@@ -47,9 +47,7 @@ namespace StarlightRiver.Content.Items.Misc
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe(50);
-            recipe.AddIngredient(ItemID.DirtBlock, 4); //TODO: real recipie
-            recipe.AddTile(TileID.WorkBenches);
+            CreateRecipe(50).AddIngredient(ModContent.ItemType<SpaceEvent.Astroscrap>()).AddTile(TileID.WorkBenches).Register();
         }
     }
 

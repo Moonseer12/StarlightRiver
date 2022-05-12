@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Terraria;
 using Terraria.ModLoader;
 using Terraria.Utilities;
-using Terraria.ModLoader;
 
 namespace StarlightRiver.Core
 {

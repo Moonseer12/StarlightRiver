@@ -37,10 +37,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
         public override void AddRecipes()
         {
-            var recipe = CreateRecipe(100);
-            recipe.AddIngredient(ItemID.FlamingArrow, 100);
-            recipe.AddIngredient(ItemType<MagmaCore>(), 1);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe(100).AddIngredient(ItemID.FlamingArrow, 100).AddIngredient(ItemType<MagmaCore>(), 1).AddTile(TileID.Anvils).Register();
         }
     }
 

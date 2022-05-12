@@ -72,10 +72,7 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override void AddRecipes()
 		{
-			Recipe recipe = CreateRecipe();
-			recipe.AddIngredient(ItemID.Chain, 10);
-			recipe.AddIngredient(ItemID.Boomstick, 2);
-			recipe.AddTile(TileID.Anvils);
+			CreateRecipe().AddIngredient(ItemID.Chain, 10).AddIngredient(ItemID.Boomstick, 2).AddTile(TileID.Anvils).Register();
 		}
 
 		public override float UseTimeMultiplier(Player Player) => base.UseTimeMultiplier(Player) * Player.GetTotalAttackSpeed(DamageClass.Melee); //Scale with melee speed buffs, like whips

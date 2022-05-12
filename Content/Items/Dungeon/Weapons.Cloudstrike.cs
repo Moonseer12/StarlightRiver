@@ -174,12 +174,8 @@ namespace StarlightRiver.Content.Items.Dungeon
 
         public override void AddRecipes()
         {
-            Recipe recipe = CreateRecipe();
-            recipe.AddIngredient(ModContent.ItemType<InertStaff>(), 1);
-            recipe.AddIngredient(ModContent.ItemType<Astroscrap>(), 10);
-            recipe.AddTile(TileID.Anvils);
+            CreateRecipe().AddIngredient(ModContent.ItemType<InertStaff>(), 1).AddIngredient(ModContent.ItemType<Astroscrap>(), 10).AddTile(TileID.Anvils).Register();
         }
-
     }
 
     public class CloudstrikeShot : ModProjectile, IDrawAdditive, IDrawPrimitive
