@@ -1,8 +1,11 @@
 using ReLogic.Content;
+using StarlightRiver.Content.Packets;
 using StarlightRiver.Core.Systems.CameraSystem;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Terraria.DataStructures;
+using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
 namespace StarlightRiver.Content.Bosses.GlassMiniboss
@@ -18,6 +21,8 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 		public NPC Parent => Main.npc[(int)Projectile.ai[0]];
 
 		public ref float TotalTime => ref Projectile.ai[1];
+
+		public bool isLoaded = false;
 
 		public override void SetStaticDefaults()
 		{
@@ -35,17 +40,18 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			Projectile.hide = true;
 		}
 
-		public override void OnSpawn(IEntitySource source)
-		{
-			swingTimer = (int)TotalTime;
-			Projectile.timeLeft = (int)TotalTime + 50;
-			Helpers.Helper.PlayPitched("GlassMiniboss/WeavingLong", 1f, 0f, Projectile.Center);
-		}
-
 		public override void AI()
 		{
 			if (!Parent.active || Parent.type != NPCType<Glassweaver>())
 				Projectile.Kill();
+
+			if (!isLoaded)
+			{
+				swingTimer = (int)TotalTime;
+				Projectile.timeLeft = (int)TotalTime + 50;
+				Helpers.Helper.PlayPitched("GlassMiniboss/WeavingLong", 1f, 0f, Projectile.Center);
+				isLoaded = true;
+			}
 
 			swingTimer--;
 
@@ -99,7 +105,7 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			}
 		}
 
-		public override void OnHitPlayer(Player target, int damage, bool crit)
+		public override void OnHitPlayer(Player target, Player.HurtInfo info)
 		{
 			if (swingTimer < TotalTime * 0.12f)
 				target.AddBuff(BuffType<Buffs.Squash>(), 180);
@@ -107,6 +113,9 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 		public override void Kill(int timeLeft)
 		{
+			if (Main.netMode == NetmodeID.Server)
+				return;
+
 			Helpers.Helper.PlayPitched("GlassMiniboss/GlassShatter", 1f, Main.rand.NextFloat(0.1f), Projectile.Center);
 
 			for (int k = 0; k < 10; k++)
@@ -157,7 +166,9 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 		public ref float Timer => ref Projectile.ai[0];
 
-		public ref float WhoAmI => ref Projectile.ai[1];
+		public ref float OwnerWhoAmI => ref Projectile.ai[1];
+
+		private bool isLoaded = false;
 
 		public override void SetStaticDefaults()
 		{
@@ -180,12 +191,24 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 		public override void OnSpawn(IEntitySource source)
 		{
+			OnSpawnSpikeVisualVars();
+		}
+
+		private void OnSpawnSpikeVisualVars()
+		{
 			Projectile.rotation += Main.rand.NextFloat(-0.01f, 0.01f);
 			maxSpikes = 3 + Main.rand.Next(16, 18);
 			points = new Vector2[maxSpikes];
 			offsets = new float[maxSpikes];
+
 			for (int i = 0; i < maxSpikes; i++)
+			{
 				offsets[i] = ((float)Math.Sin(i * MathHelper.Pi / Main.rand.NextFloat(1f, 2f)) + Main.rand.NextFloatDirection()) / 2f;
+			}
+
+			Projectile.direction = Main.npc[(int)OwnerWhoAmI].direction;
+
+			isLoaded = true;
 		}
 
 		public override bool OnTileCollide(Vector2 oldVelocity)
@@ -195,13 +218,16 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 		public override void AI()
 		{
+			if (!isLoaded)
+				OnSpawnSpikeVisualVars();
+
 			Timer++;
 
 			if (Timer == RAISE_TIME - 59)
 			{
-				Projectile.height = (int)(MathHelper.Lerp(240, 150, WhoAmI) * Projectile.scale);
+				Projectile.height = (int)(MathHelper.Lerp(240, 150, OwnerWhoAmI) * Projectile.scale); //using OwnerWhoAmI is shitcode but leaving it incase it has some reason for 1 time randomness like this
 
-				Projectile.rotation += WhoAmI * Projectile.direction * 0.1f;
+				Projectile.rotation += OwnerWhoAmI * Projectile.direction * 0.1f;
 
 				int x = (int)(Projectile.Center.X / 16f);
 				int y = (int)(Projectile.Center.Y / 16f);
@@ -254,10 +280,16 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 				Projectile.Kill();
 		}
 
-		public override void OnHitPlayer(Player target, int damage, bool crit)
+		public override void OnHitPlayer(Player target, Player.HurtInfo info)
 		{
 			if (Timer >= RAISE_TIME)
 			{
+				if (Main.LocalPlayer.whoAmI == target.whoAmI)
+				{
+					PlayerHitPacket hitPacket = new PlayerHitPacket(Projectile.identity, target.whoAmI, info.Damage, Projectile.type);
+					hitPacket.Send(-1, Main.LocalPlayer.whoAmI, false);
+				}
+
 				target.Center -= new Vector2(0, 8).RotatedBy(Projectile.rotation);
 				target.velocity.Y -= 0.5f;
 				target.velocity.X *= 0.6f;
@@ -289,7 +321,7 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			if (Timer < RAISE_TIME + 10)
 				DrawGroundTell();
 
-			Asset<Texture2D> bloom = Request<Texture2D>(AssetDirectory.Keys + "GlowAlpha");
+			Asset<Texture2D> bloom = Assets.Keys.GlowAlpha;
 
 			if (Timer > RAISE_TIME - 10)
 			{
@@ -349,7 +381,7 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 		private void DrawGroundTell()
 		{
-			Asset<Texture2D> tellTex = Request<Texture2D>(AssetDirectory.MiscTextures + "SpikeTell");
+			Asset<Texture2D> tellTex = Assets.Misc.SpikeTell;
 			Rectangle frame = tellTex.Frame(2, 1, 1);
 			Rectangle frameGlow = tellTex.Frame(2, 1, 1);
 			Vector2 tellOrigin = frame.Size() * new Vector2(0.5f, 0.928f);

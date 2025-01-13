@@ -15,7 +15,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		public override void DrawShapes(SpriteBatch spriteBatch)
 		{
-			Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.MiscItem + "MagmaGunProj").Value;
+			Texture2D tex = Assets.Items.Misc.MagmaGunProj.Value;
 
 			for (int k = 0; k < Main.maxNPCs; k++)
 			{
@@ -47,7 +47,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 			foreach (Projectile proj in Main.projectile.Where(n => n.active && n.type == ModContent.ProjectileType<AuroraWaterSplash>()))
 			{
-				Texture2D tex2 = ModContent.Request<Texture2D>(AssetDirectory.SquidBoss + "AuroraWaterSplash").Value;
+				Texture2D tex2 = Assets.Bosses.SquidBoss.AuroraWaterSplash.Value;
 				var frame = new Rectangle(0, (int)(6 - proj.timeLeft / 40f * 6) * 106, 72, 106);
 
 				spriteBatch.Draw(tex2, (proj.Center - Main.screenPosition) / 2f, frame, new Color(0.4f, 1, 1), 0, new Vector2(36, 53), 0.5f, 0, 0);
@@ -70,12 +70,12 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			effect.Parameters["speed"].SetValue(50f);
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, effect);
+			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, RasterizerState.CullNone, effect);
 
 			Main.spriteBatch.Draw(target, Vector2.Zero, null, Color.Red * 0.4f, 0, Vector2.Zero, 1, 0, 0);
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			return false;
 		}
@@ -96,12 +96,12 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			effect.Parameters["lightTexture"].SetValue(LightingBuffer.screenLightingTarget.RenderTarget);
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, RasterizerState.CullNone, effect, Main.GameViewMatrix.TransformationMatrix);
 
 			Main.spriteBatch.Draw(target, Vector2.Zero, null, Color.Red * 0.4f, 0, Vector2.Zero, 2, 0, 0);
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			return false;
 		}

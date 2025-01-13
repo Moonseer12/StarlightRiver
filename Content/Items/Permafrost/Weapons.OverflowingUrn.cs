@@ -29,12 +29,12 @@ namespace StarlightRiver.Content.Items.Permafrost
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Overflowing Urn");
-			Tooltip.SetDefault("Unleashes a torrent of chilling winds\nProlonged use will frostburn you");
+			Tooltip.SetDefault("Unleashes a torrent of chilling winds\nProlonged use will cause it to go out of control");
 		}
 
 		public override void SetDefaults()
 		{
-			Item.damage = 15;
+			Item.damage = 30;
 			Item.channel = true;
 			Item.DamageType = DamageClass.Magic;
 			Item.mana = 3;
@@ -50,12 +50,13 @@ namespace StarlightRiver.Content.Items.Permafrost
 			Item.noMelee = true;
 			Item.noUseGraphic = true;
 			Item.autoReuse = true;
+
+			Item.value = Item.sellPrice(gold: 2);
 		}
 
 		public override void ModifyTooltips(List<TooltipLine> tooltips)
 		{
 			tooltips.FirstOrDefault(n => n.Name == "Damage").Text = tooltips.FirstOrDefault(n => n.Name == "Damage").Text.Replace("damage", "damage over time");
-			tooltips.FirstOrDefault(n => n.Name == "CritChance").Text = "Cannot critically strike";
 		}
 
 		private void PostDrawIcon(Player Player, SpriteBatch spriteBatch)
@@ -63,18 +64,18 @@ namespace StarlightRiver.Content.Items.Permafrost
 			if (Player.HeldItem.type == ModContent.ItemType<OverflowingUrn>())
 			{
 				var item = Player.HeldItem.ModItem as OverflowingUrn;
-				Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.PermafrostItem + "UrnFreezeUnder").Value;
-				Texture2D overlayTex = ModContent.Request<Texture2D>(AssetDirectory.PermafrostItem + "UrnFreezeUnder_Overlay").Value;
-				Texture2D icicleTex = ModContent.Request<Texture2D>(AssetDirectory.PermafrostItem + "UrnFreezeUnder_Icicle").Value;
-				Texture2D whiteTex = ModContent.Request<Texture2D>(AssetDirectory.PermafrostItem + "UrnFreezeUnder_White").Value;
-				Texture2D dividerTex = ModContent.Request<Texture2D>(AssetDirectory.PermafrostItem + "UrnFreezeUnder_Divider").Value;
+				Texture2D tex = Assets.Items.Permafrost.UrnFreezeUnder.Value;
+				Texture2D overlayTex = Assets.Items.Permafrost.UrnFreezeUnder_Overlay.Value;
+				Texture2D icicleTex = Assets.Items.Permafrost.UrnFreezeUnder_Icicle.Value;
+				Texture2D whiteTex = Assets.Items.Permafrost.UrnFreezeUnder_White.Value;
+				Texture2D dividerTex = Assets.Items.Permafrost.UrnFreezeUnder_Divider.Value;
 
 				if (item.animationTimer > 0)
 				{
 					if (Player.HasBuff(ModContent.BuffType<UrnFreeze>()))
 					{
-						tex = ModContent.Request<Texture2D>(AssetDirectory.PermafrostItem + "UrnFreezeUnder_Overload").Value;
-						overlayTex = ModContent.Request<Texture2D>(AssetDirectory.PermafrostItem + "UrnFreezeUnder_Overlay_Overload").Value;
+						tex = Assets.Items.Permafrost.UrnFreezeUnder_Overload.Value;
+						overlayTex = Assets.Items.Permafrost.UrnFreezeUnder_Overlay_Overload.Value;
 					}
 
 					spriteBatch.Draw(tex, Player.Center + Vector2.UnitY * (48 + Player.gfxOffY) - Main.screenPosition, null, Color.White * item.animationTimer, 0, new Vector2(16, 23), item.animationTimer, 0, 0);
@@ -407,19 +408,20 @@ namespace StarlightRiver.Content.Items.Permafrost
 
 		private void ManageTrails()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 120, new TriangularTip(4), factor => 174 * WindStrength + 0.9f * freezeTimer, factor => Lighting.GetColor(Projectile.Center.ToTileCoordinates()));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 120, new NoTip(), factor => 174 * WindStrength + 0.9f * freezeTimer, factor => Lighting.GetColor(Projectile.Center.ToTileCoordinates()));
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center;
 		}
 
 		private void DrawWind()
 		{
-			Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Items/Gravedigger/GluttonyBG").Value;
+			Texture2D tex = Assets.Items.Gravedigger.GluttonyBG.Value;
 			Main.spriteBatch.End();
 			Effect effect1 = Filters.Scene["CycloneIce"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect1.Parameters["transformMatrix"].SetValue(world * view * projection);
@@ -436,14 +438,14 @@ namespace StarlightRiver.Content.Items.Permafrost
 			effect1.Parameters["startColor"].SetValue(Color.Cyan.ToVector3());
 			effect1.Parameters["endColor"].SetValue(Color.White.ToVector3());
 			effect1.Parameters["sampleTexture"].SetValue(tex);
-			effect1.Parameters["sampleTexture2"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/Bosses/VitricBoss/LaserBallDistort").Value);
+			effect1.Parameters["sampleTexture2"].SetValue(Assets.Bosses.VitricBoss.LaserBallDistort.Value);
 
 			BlendState oldState = Main.graphics.GraphicsDevice.BlendState;
 			Main.graphics.GraphicsDevice.BlendState = BlendState.Additive;
 			trail?.Render(effect1);
 			Main.graphics.GraphicsDevice.BlendState = oldState;
 
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 

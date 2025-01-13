@@ -58,12 +58,12 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 			Projectile.rotation = Projectile.velocity.ToRotation() + 3.14f / 4;
 		}
 
-		public override void ModifyHitPlayer(Player target, ref int damage, ref bool crit)
+		public override void ModifyHitPlayer(Player target, ref Player.HurtModifiers modifiers)
 		{
 			target.AddBuff(BuffID.Bleeding, 300);
 		}
 
-		public override void Kill(int timeLeft)
+		public override void OnKill(int timeLeft)
 		{
 			Color color = Helpers.Helper.MoltenVitricGlow(MathHelper.Min(200 - Projectile.timeLeft, 120));
 
@@ -75,7 +75,9 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 			if (Main.masterMode)
 			{
-				Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, Vector2.Zero, ProjectileType<FireRingHostile>(), 20, 0, Main.myPlayer, 50);
+				if (Main.netMode != NetmodeID.MultiplayerClient)
+					Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, Vector2.Zero, ProjectileType<FireRingHostile>(), 20, 0, Main.myPlayer, 50);
+
 				Terraria.Audio.SoundEngine.PlaySound(SoundID.DD2_ExplosiveTrapExplode, Projectile.Center);
 			}
 			else

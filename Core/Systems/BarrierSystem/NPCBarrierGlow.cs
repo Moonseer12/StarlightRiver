@@ -2,6 +2,7 @@
 using StarlightRiver.Core.Systems.ScreenTargetSystem;
 using System;
 using Terraria.Graphics.Effects;
+using Terraria.ID;
 
 namespace StarlightRiver.Core.Systems.BarrierSystem
 {
@@ -24,12 +25,12 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 			NPCTarget ??= new(n => DrawAllNPCS(n, false), () => anyEnemiesWithBarrier, 1);
 			NPCTargetBehindTiles ??= new(n => DrawAllNPCS(n, true), () => anyEnemiesWithBarrier, 1);
 
-			On.Terraria.Main.DrawNPCs += DrawBarrierOverlay;
+			On_Main.DrawNPCs += DrawBarrierOverlay;
 		}
 
 		public override void Unload()
 		{
-			On.Terraria.Main.DrawNPCs -= DrawBarrierOverlay;
+			On_Main.DrawNPCs -= DrawBarrierOverlay;
 		}
 
 		public override void PreUpdateNPCs()
@@ -43,7 +44,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 			{
 				NPC NPC = Main.npc[i];
 
-				if (NPC.behindTiles != behindTiles || !NPC.active || NPC.GetGlobalNPC<BarrierNPC>().barrier <= 0)
+				if (NPC.behindTiles != behindTiles || !NPC.active || NPC.type <= NPCID.None || NPC.GetGlobalNPC<BarrierNPC>().barrier <= 0)
 					continue;
 
 				if (NPC.ModNPC != null)
@@ -62,7 +63,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 			}
 		}
 
-		private void DrawBarrierOverlay(On.Terraria.Main.orig_DrawNPCs orig, Main self, bool behindTiles)
+		private void DrawBarrierOverlay(On_Main.orig_DrawNPCs orig, Main self, bool behindTiles)
 		{
 			if (anyEnemiesWithBarrier)
 				DrawNPCTarget(behindTiles ? NPCTargetBehindTiles.RenderTarget : NPCTarget.RenderTarget);
@@ -108,7 +109,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 }

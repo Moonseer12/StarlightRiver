@@ -1,5 +1,6 @@
 ﻿using StarlightRiver.Content.Buffs;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Terraria.GameContent;
 using Terraria.ID;
@@ -12,6 +13,8 @@ namespace StarlightRiver.Content.Items.Food
 	{
 		public List<Item> Ingredients { get; set; } = new List<Item>();
 		public int Fullness { get; set; }
+		public float BuffLengthMult { get; set; } = 1;
+		public float DebuffLengthMult { get; set; } = 1;
 
 		public override string Texture => AssetDirectory.FoodItem + Name;
 
@@ -31,6 +34,15 @@ namespace StarlightRiver.Content.Items.Food
 			Item.height = 32;
 		}
 
+		public override ModItem Clone(Item newEntity)
+		{
+			var clone = base.Clone(newEntity) as Meal;
+			var newList = new List<Item>();
+			Ingredients.ForEach(n => newList.Add(n.Clone()));
+			clone.Ingredients = newList;
+			return clone;
+		}
+
 		public override bool CanUseItem(Player player)
 		{
 			FoodBuffHandler mp = player.GetModPlayer<FoodBuffHandler>();
@@ -42,8 +54,9 @@ namespace StarlightRiver.Content.Items.Food
 			{
 				foreach (Item Item in Ingredients)
 					mp.Consumed.Add(Item.Clone());
-				player.AddBuff(BuffType<FoodBuff>(), Fullness);
-				player.AddBuff(BuffType<Full>(), (int)(Fullness * 1.5f));
+
+				player.AddBuff(BuffType<FoodBuff>(), (int)(Fullness * BuffLengthMult));
+				player.AddBuff(BuffType<Full>(), (int)(Fullness * 1.5f * DebuffLengthMult));
 			}
 			else
 			{
@@ -112,10 +125,13 @@ namespace StarlightRiver.Content.Items.Food
 				tooltips.Add(line);
 			}
 
-			var durationLine = new TooltipLine(Mod, "StarlightRiver: Duration", Fullness / 60 + " seconds duration") { OverrideColor = new Color(110, 235, 255) };
+			int duration = (int)(Fullness * BuffLengthMult);
+			int cooldown = (int)(Fullness * 1.5f * DebuffLengthMult);
+
+			var durationLine = new TooltipLine(Mod, "StarlightRiver: Duration", $"{(int)(duration / 3600)}m {duration % 3600 / 60}s duration") { OverrideColor = new Color(110, 235, 255) };
 			tooltips.Add(durationLine);
 
-			var cooldownLine = new TooltipLine(Mod, "StarlightRiver: Cooldown", (int)(Fullness * 1.5f) / 60 + " seconds fullness") { OverrideColor = new Color(255, 170, 120) };
+			var cooldownLine = new TooltipLine(Mod, "StarlightRiver: Cooldown", $"{(int)(cooldown / 3600)}m {cooldown % 3600 / 60}s fullness") { OverrideColor = new Color(255, 170, 120) };
 			tooltips.Add(cooldownLine);
 		}
 
@@ -123,12 +139,43 @@ namespace StarlightRiver.Content.Items.Food
 		{
 			tag.Add("Items", Ingredients);
 			tag.Add("Fullness", Fullness);
+			tag.Add("FullnessMult", BuffLengthMult);
+			tag.Add("WellFedMult", DebuffLengthMult);
 		}
 
 		public override void LoadData(TagCompound tag)
 		{
 			Ingredients = (List<Item>)tag.GetList<Item>("Items");
 			Fullness = tag.GetInt("Fullness");
+			BuffLengthMult = tag.GetFloat("FullnessMult");
+			DebuffLengthMult = tag.GetFloat("WellFedMult");
+		}
+
+		public override void NetSend(BinaryWriter writer)
+		{
+			writer.Write(Fullness);
+			writer.Write(BuffLengthMult);
+			writer.Write(DebuffLengthMult);
+
+			writer.Write(Ingredients.Count);
+			foreach (Item eachIngrediennt in Ingredients)
+				writer.Write(eachIngrediennt.type);
+		}
+
+		public override void NetReceive(BinaryReader reader)
+		{
+			Fullness = reader.ReadInt32();
+			BuffLengthMult = reader.ReadSingle();
+			DebuffLengthMult = reader.ReadSingle();
+
+			Ingredients = new List<Item>();
+			int ingredientCount = reader.ReadInt32();
+
+			for (int i = 0; i < ingredientCount; i++)
+			{
+				int ingredientType = reader.ReadInt32();
+				Ingredients.Add(new Item(ingredientType));
+			}
 		}
 	}
 }

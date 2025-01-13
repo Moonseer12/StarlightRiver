@@ -3,6 +3,7 @@ using StarlightRiver.Content.Tiles.Vitric;
 using System;
 using System.IO;
 using Terraria.GameContent.Bestiary;
+using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
@@ -31,14 +32,14 @@ namespace StarlightRiver.Content.NPCs.Vitric
 		{
 			writer.Write(NPC.noGravity);
 			writer.Write(NPC.target);
-			writer.WritePackedVector2(NPC.velocity);
+			writer.WriteVector2(NPC.velocity);
 		}
 
 		public override void ReceiveExtraAI(BinaryReader reader)
 		{
 			NPC.noGravity = reader.ReadBoolean();
 			NPC.target = reader.ReadInt32();
-			NPC.velocity = reader.ReadPackedVector2();
+			NPC.velocity = reader.ReadVector2();
 		}
 
 		public override void SetDefaults()
@@ -63,7 +64,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			bestiaryEntry.Info.AddRange(new IBestiaryInfoElement[]
 			{
 				Bestiary.SLRSpawnConditions.VitricDesert,
-				new FlavorTextBestiaryInfoElement("[PH] Entry")
+				new FlavorTextBestiaryInfoElement("A territorial bat, related to the Sandviper. It launches itself into the air when startled, accompanied with a burst of its nesting crystals towards any nearby foes.")
 			});
 		}
 
@@ -139,7 +140,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			}
 		}
 
-		public override void HitEffect(int hitDirection, double damage)
+		public override void HitEffect(NPC.HitInfo hit)
 		{
 			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
 			{
@@ -149,7 +150,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 				}
 			}
 
-			if (NPC.ai[0] == 0 && damage > maxIgnoreDamage)
+			if (NPC.ai[0] == 0 && hit.Damage > maxIgnoreDamage)
 				ExitSleep();
 		}
 
@@ -157,6 +158,11 @@ namespace StarlightRiver.Content.NPCs.Vitric
 		{
 			Tile tile = Framing.GetTileSafely(spawnInfo.SpawnTileX, spawnInfo.SpawnTileY);
 			return tile.HasTile && spawnInfo.SpawnTileType != TileType<VitricSpike>() && spawnInfo.Player.InModBiome(ModContent.GetInstance<VitricDesertBiome>()) ? 95f : 0f;
+		}
+
+		public override void ModifyNPCLoot(NPCLoot npcLoot)
+		{
+			npcLoot.Add(ItemDropRule.Common(ItemType<Items.Vitric.SandstoneChunk>(), 2, 2, 5));
 		}
 
 		public override void FindFrame(int frameHeight)

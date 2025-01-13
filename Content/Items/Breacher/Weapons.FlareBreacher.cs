@@ -8,6 +8,7 @@ using Terraria.DataStructures;
 using Terraria.GameContent;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
+using Terraria.Localization;
 
 namespace StarlightRiver.Content.Items.Breacher
 {
@@ -73,6 +74,11 @@ namespace StarlightRiver.Content.Items.Breacher
 			recipe.AddIngredient(ModContent.ItemType<Content.Items.SpaceEvent.Astroscrap>(), 12);
 			recipe.AddTile(TileID.Anvils);
 			recipe.Register();
+		}
+
+		public static Condition getMerchantFlareCondition()
+		{
+			return new Condition(Language.GetText("Conditions.PlayerCarriesItem").WithFormatArgs(Lang.GetItemName(ModContent.ItemType<FlareBreacher>())), () => Main.LocalPlayer.HasItem(ModContent.ItemType<FlareBreacher>()) && !Main.LocalPlayer.HasItem(ItemID.FlareGun));
 		}
 	}
 
@@ -164,7 +170,7 @@ namespace StarlightRiver.Content.Items.Breacher
 			return base.OnTileCollide(oldVelocity);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (!stuck && target.life > 0)
 			{
@@ -181,14 +187,14 @@ namespace StarlightRiver.Content.Items.Breacher
 		public override void SendExtraAI(BinaryWriter writer)
 		{
 			writer.Write(stuck);
-			writer.WritePackedVector2(offset);
+			writer.WriteVector2(offset);
 			writer.Write(enemyID);
 		}
 
 		public override void ReceiveExtraAI(BinaryReader reader)
 		{
 			stuck = reader.ReadBoolean();
-			offset = reader.ReadPackedVector2();
+			offset = reader.ReadVector2();
 			enemyID = reader.ReadInt32();
 		}
 
@@ -210,7 +216,7 @@ namespace StarlightRiver.Content.Items.Breacher
 			Helper.PlayPitched("Guns/FlareBoom", 0.4f, Main.rand.NextFloat(-0.1f, 0.1f), Projectile.Center);
 
 			if (!target.immortal && !target.dontTakeDamage)
-				target.StrikeNPC(Projectile.damage, 0f, 0);
+				target.SimpleStrikeNPC(Projectile.damage, 0);
 
 			CameraSystem.shake = 10;
 			int numberOfProjectiles = Main.rand.Next(4, 6);
@@ -322,7 +328,8 @@ namespace StarlightRiver.Content.Items.Breacher
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 20, new TriangularTip(40 * 4), factor => factor * 6, factor => new Color(255, 50, 180));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 20, new NoTip(), factor => factor * 6, factor => new Color(255, 50, 180));
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -333,11 +340,11 @@ namespace StarlightRiver.Content.Items.Breacher
 			Effect effect = Filters.Scene["ShrapnelTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			effect.Parameters["progress"].SetValue(MathHelper.Lerp(Projectile.timeLeft / 60f, 0, 0.3f));
 
 			trail?.Render(effect);

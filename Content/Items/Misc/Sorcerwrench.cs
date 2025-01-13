@@ -10,6 +10,7 @@ namespace StarlightRiver.Content.Items.Misc
 {
 	class Sorcerwrench : ModItem
 	{
+		[CloneByReference]
 		public Projectile proj;
 
 		public override string Texture => AssetDirectory.MiscItem + Name;
@@ -43,6 +44,15 @@ namespace StarlightRiver.Content.Items.Misc
 			position = Main.MouseWorld;
 			proj = Projectile.NewProjectileDirect(source, position, Vector2.Zero, type, damage, knockback, player.whoAmI);
 			return false;
+		}
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.CombatWrench);
+			recipe.AddIngredient(ItemID.FallenStar, 3);
+			recipe.AddIngredient(ItemID.Dynamite, 5);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 

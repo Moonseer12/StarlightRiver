@@ -1,3 +1,4 @@
+using StarlightRiver.Core.Systems;
 using System;
 using Terraria.DataStructures;
 using Terraria.GameContent;
@@ -72,7 +73,13 @@ namespace StarlightRiver.Content.Tiles.Vitric
 			Main.spriteBatch.Draw(TextureAssets.Tile[Type].Value, new Vector2(i * 16 + offsetX, j * 16) - Main.screenPosition + zero, new Rectangle(tile.TileFrameX + frameOffsetX, tile.TileFrameY, 16, 16), Lighting.GetColor(i, j), 0f, Vector2.Zero, 1f, spriteDir, 0f);
 			return false;
 		}
+
+		public override bool CanDrop(int i, int j)
+		{
+			return false;
+		}
 	}
 
-	internal class VitricBreakableVaseItem : QuickTileItem { public VitricBreakableVaseItem() : base("VitricBreakableVaseItem", "Vitric Vase Placer", "Debug Item", "VitricBreakableVases", 2, AssetDirectory.VitricTile) { } }
+	[SLRDebug]
+	internal class VitricBreakableVaseItem : QuickTileItem { public VitricBreakableVaseItem() : base("VitricBreakableVaseItem", "Vitric Vase Placer", "{{Debug}} Item", "VitricBreakableVases", 2, AssetDirectory.VitricTile) { } }
 }

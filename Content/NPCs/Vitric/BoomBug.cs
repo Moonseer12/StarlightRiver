@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using Terraria.Audio;
 using Terraria.GameContent.Bestiary;
+using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
@@ -52,7 +53,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			bestiaryEntry.Info.AddRange(new IBestiaryInfoElement[]
 			{
 				Bestiary.SLRSpawnConditions.VitricDesert,
-				new FlavorTextBestiaryInfoElement("[PH] Entry")
+				new FlavorTextBestiaryInfoElement("A swarming insect found in the Vitric Desert. Rapidly calls forth its lesser bretheren as a means of attack, flying close to their target before detonating their molten nectar to burn and cook their prey.")
 			});
 		}
 
@@ -60,7 +61,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 		{
 			if (dying)
 			{
-				Helper.PlayPitched("Magic/FireHit", 0.65f, 0, NPC.Center);
+				Helper.PlayPitched("Magic/FireHit", 0.3f, 0.3f, NPC.Center);
 				for (int i = 0; i < 8; i++)
 				{
 					var dust = Dust.NewDustDirect(NPC.Center - new Vector2(16, 16), 0, 0, ModContent.DustType<CoachGunDust>());
@@ -145,7 +146,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 					NPC.velocity = projVel * -1;
 					magmaCharge = 0;
 					chargingMagma = false;
-					Projectile.NewProjectile(NPC.GetSource_FromAI(), NPC.Center, projVel, ModContent.ProjectileType<FirebugMagma>(), 70, 4);
+					Projectile.NewProjectile(NPC.GetSource_FromAI(), NPC.Center, projVel, ModContent.ProjectileType<FirebugMagma>(), 45, 4);
 				}
 			}
 			else
@@ -192,7 +193,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 		{
 			Texture2D tex = Request<Texture2D>(Texture).Value;
 			Texture2D glowTex = Request<Texture2D>(Texture + "_Glow").Value;
-			Texture2D magmaTex = Request<Texture2D>(AssetDirectory.Keys + "GlowHarsh").Value;
+			Texture2D magmaTex = Assets.Keys.GlowHarsh.Value;
 
 			var magmaOffset = new Vector2(-13 * NPC.spriteDirection, 8);
 			SpriteEffects effects = SpriteEffects.None;
@@ -204,7 +205,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			if (!NPC.IsABestiaryIconDummy || drawColor == Color.White)
 			{
 				spriteBatch.End();
-				spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 				for (int i = 0; i < 6; i++)
 				{
 					float angle = i / 6f * MathHelper.TwoPi;
@@ -224,7 +225,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 				}
 
 				spriteBatch.End();
-				spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 			}
 
 			return false;
@@ -232,7 +233,12 @@ namespace StarlightRiver.Content.NPCs.Vitric
 
 		public override float SpawnChance(NPCSpawnInfo spawnInfo)
 		{
-			return spawnInfo.Player.InModBiome(GetInstance<VitricDesertBiome>()) ? 100 : 0;
+			return spawnInfo.Player.InModBiome(GetInstance<VitricDesertBiome>()) ? 60 : 0;
+		}
+
+		public override void ModifyNPCLoot(NPCLoot npcLoot)
+		{
+			npcLoot.Add(ItemDropRule.Common(ItemType<Items.Vitric.SandstoneChunk>(), 3, 1, 3));
 		}
 
 		private int TileGapDown()
@@ -305,7 +311,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			bestiaryEntry.Info.AddRange(new IBestiaryInfoElement[]
 			{
 				Bestiary.SLRSpawnConditions.VitricDesert,
-				new FlavorTextBestiaryInfoElement("[PH] Entry")
+				new FlavorTextBestiaryInfoElement("A lesser form of the Firebug, these are at the bottom of the nest's heirarchy. They are regularly sent to their deaths in order to detonate their own bodys to help the hive hunt.")
 			});
 		}
 
@@ -340,7 +346,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 				NPC.Kill();
 		}
 
-		public override void OnHitPlayer(Player target, int damage, bool crit)
+		public override void OnHitPlayer(Player target, Player.HurtInfo hurtInfo)
 		{
 			NPC.Kill();
 		}
@@ -359,7 +365,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			if (!NPC.IsABestiaryIconDummy || drawColor == Color.White)
 			{
 				spriteBatch.End();
-				spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 				for (int i = 0; i < 6; i++)
 				{
 					float angle = i / 6f * MathHelper.TwoPi;
@@ -374,42 +380,48 @@ namespace StarlightRiver.Content.NPCs.Vitric
 				}
 
 				spriteBatch.End();
-				spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 			}
 
 			return false;
 		}
 
+		public override void HitEffect(NPC.HitInfo hit)
+		{
+			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
+			{
+				SoundEngine.PlaySound(SoundID.Item14, NPC.Center);
+
+				for (int i = 0; i < 4; i++)
+				{
+					var dust = Dust.NewDustDirect(NPC.Center - new Vector2(16, 16), 0, 0, ModContent.DustType<CoachGunDust>());
+					dust.velocity = Main.rand.NextVector2Circular(2, 2);
+					dust.scale = Main.rand.NextFloat(0.8f, 1.4f);
+					dust.alpha = 70 + Main.rand.Next(60);
+					dust.rotation = Main.rand.NextFloat(6.28f);
+				}
+
+				for (int i = 0; i < 8; i++)
+				{
+					Vector2 dir = Main.rand.NextVector2CircularEdge(0.5f, 0.5f) + Main.rand.NextVector2Circular(0.5f, 0.5f);
+					Dust.NewDustPerfect(NPC.Center + dir * 24, ModContent.DustType<Dusts.GlowLineFast>(), dir * 12, 0, Color.OrangeRed, Main.rand.NextFloat(0.65f, 1.15f));
+				}
+
+				for (int i = 0; i < 4; i++)
+				{
+					var dust = Dust.NewDustDirect(NPC.Center - new Vector2(16, 16), 0, 0, ModContent.DustType<CoachGunDustTwo>());
+					dust.velocity = Main.rand.NextVector2Circular(2, 2);
+					dust.scale = Main.rand.NextFloat(0.8f, 1.4f);
+					dust.alpha = Main.rand.Next(80) + 40;
+					dust.rotation = Main.rand.NextFloat(6.28f);
+
+					Dust.NewDustPerfect(NPC.Center + Main.rand.NextVector2Circular(25, 25), ModContent.DustType<CoachGunDustGlow>()).scale = 0.9f;
+				}
+			}
+		}
+
 		public override void OnKill()
 		{
-			SoundEngine.PlaySound(SoundID.Item14, NPC.Center);
-
-			for (int i = 0; i < 4; i++)
-			{
-				var dust = Dust.NewDustDirect(NPC.Center - new Vector2(16, 16), 0, 0, ModContent.DustType<CoachGunDust>());
-				dust.velocity = Main.rand.NextVector2Circular(2, 2);
-				dust.scale = Main.rand.NextFloat(0.8f, 1.4f);
-				dust.alpha = 70 + Main.rand.Next(60);
-				dust.rotation = Main.rand.NextFloat(6.28f);
-			}
-
-			for (int i = 0; i < 8; i++)
-			{
-				Vector2 dir = Main.rand.NextVector2CircularEdge(0.5f, 0.5f) + Main.rand.NextVector2Circular(0.5f, 0.5f);
-				Dust.NewDustPerfect(NPC.Center + dir * 24, ModContent.DustType<Dusts.GlowLineFast>(), dir * 12, 0, Color.OrangeRed, Main.rand.NextFloat(0.65f, 1.15f));
-			}
-
-			for (int i = 0; i < 4; i++)
-			{
-				var dust = Dust.NewDustDirect(NPC.Center - new Vector2(16, 16), 0, 0, ModContent.DustType<CoachGunDustTwo>());
-				dust.velocity = Main.rand.NextVector2Circular(2, 2);
-				dust.scale = Main.rand.NextFloat(0.8f, 1.4f);
-				dust.alpha = Main.rand.Next(80) + 40;
-				dust.rotation = Main.rand.NextFloat(6.28f);
-
-				Dust.NewDustPerfect(NPC.Center + Main.rand.NextVector2Circular(25, 25), ModContent.DustType<CoachGunDustGlow>()).scale = 0.9f;
-			}
-
 			for (int i = 0; i < 2; i++)
 			{
 				Vector2 velocity = Main.rand.NextFloat(6.28f).ToRotationVector2() * Main.rand.NextFloat(1, 2);
@@ -434,7 +446,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 
 	public class FirebugMagma : ModProjectile, IDrawAdditive
 	{
-		private List<Vector2> oldPos = new();
+		private readonly List<Vector2> oldPos = new();
 
 		public override string Texture => AssetDirectory.Keys + "GlowHarsh";
 

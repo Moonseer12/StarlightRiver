@@ -12,12 +12,12 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 		public override void Load()
 		{
 
-			IL.Terraria.GameContent.UI.NewMultiplayerClosePlayersOverlay.PlayerOffScreenCache.DrawLifeBar += DrawAllyRadarBarrierIL;
-			On.Terraria.Main.DrawInterface_14_EntityHealthBars += DrawShieldForPlayers;
-			On.Terraria.Main.DrawInterface_39_MouseOver += drawShieldHoverText;
+			Terraria.GameContent.UI.IL_NewMultiplayerClosePlayersOverlay.PlayerOffScreenCache.DrawLifeBar += DrawAllyRadarBarrierIL;
+			On_Main.DrawInterface_14_EntityHealthBars += DrawShieldForPlayers;
+			On_Main.DrawInterface_39_MouseOver += drawShieldHoverText;
 		}
 
-		private void DrawShieldForPlayers(On.Terraria.Main.orig_DrawInterface_14_EntityHealthBars orig, Main self)
+		private void DrawShieldForPlayers(On_Main.orig_DrawInterface_14_EntityHealthBars orig, Main self)
 		{
 			orig(self);
 
@@ -50,7 +50,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 		/// </summary>
 		/// <param name="orig"></param>
 		/// <param name="self"></param>
-		private void drawShieldHoverText(On.Terraria.Main.orig_DrawInterface_39_MouseOver orig, Main self)
+		private void drawShieldHoverText(On_Main.orig_DrawInterface_39_MouseOver orig, Main self)
 		{
 			orig(self);
 
@@ -147,7 +147,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 			if (barrier <= 0)
 				return;
 
-			Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.GUI + "ShieldBar1").Value;
+			Texture2D tex = Assets.GUI.ShieldBar1.Value;
 
 			float factor = Math.Min(barrier / (float)maxBarrier, 1);
 
@@ -158,7 +158,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 
 			if (barrier < maxBarrier && barrier > 0)
 			{
-				Texture2D texLine = ModContent.Request<Texture2D>(AssetDirectory.GUI + "ShieldBarLine").Value;
+				Texture2D texLine = Assets.GUI.ShieldBarLine.Value;
 
 				var sourceLine = new Rectangle((int)(tex.Width * factor * 1.25f), 0, 2, tex.Height);
 				var targetLine = new Rectangle((int)position.X + (int)(tex.Width * factor * horizontalScale), (int)position.Y, 2, tex.Height);

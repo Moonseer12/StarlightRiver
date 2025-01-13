@@ -1,5 +1,4 @@
 ﻿using StarlightRiver.Core.Systems.LightingSystem;
-using StarlightRiver.Helpers;
 using System;
 
 namespace StarlightRiver.Core.Systems.CutawaySystem
@@ -7,7 +6,9 @@ namespace StarlightRiver.Core.Systems.CutawaySystem
 	public class Cutaway
 	{
 		private readonly Texture2D tex;
-		private readonly Vector2 pos;
+
+		public Vector2 pos;
+
 		public float fadeTime = 1;
 
 		public bool Fade => Inside(Main.LocalPlayer);
@@ -27,7 +28,10 @@ namespace StarlightRiver.Core.Systems.CutawaySystem
 			if (opacity == 0)
 				opacity = fadeTime;
 
-			if (Helper.OnScreen(pos - Main.screenPosition, tex.Size()))
+			Rectangle bounds = Dimensions;
+			bounds.Offset((-Main.screenPosition).ToPoint());
+
+			if (ScreenTracker.OnScreenScreenspace(bounds))
 				LightingBufferRenderer.DrawWithLighting(pos - Main.screenPosition, tex, Color.White * opacity);
 
 			if (Fade)

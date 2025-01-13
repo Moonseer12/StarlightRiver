@@ -6,6 +6,7 @@ using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Terraria;
 using Terraria.Audio;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
@@ -28,7 +29,7 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Bizarre Potion");
-			Tooltip.SetDefault("Throws a random potion with random damaging effects");
+			Tooltip.SetDefault("Throws a random volatile potion with random effects\nMay inflict {{BUFF:BizarrePotionPoisonDebuff}}");
 		}
 
 		public override void SetDefaults()
@@ -49,7 +50,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Item.autoReuse = true;
 			Item.noUseGraphic = true;
 			Item.consumable = true;
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 		}
 	}
 
@@ -127,9 +128,6 @@ namespace StarlightRiver.Content.Items.Misc
 			int yFrame = (int)liquidType;
 			var frame = new Rectangle(xFrame * xFrameSize, yFrame * yFrameSize, xFrameSize, yFrameSize);
 
-			/*Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);*/
-
 			for (int k = Projectile.oldPos.Length - 1; k > 0; k--) //TODO: Clean this shit up
 			{
 				Vector2 drawPos = Projectile.oldPos[k] + new Vector2(Projectile.width, Projectile.height) / 2;
@@ -138,9 +136,6 @@ namespace StarlightRiver.Content.Items.Misc
 				if (k > 0 && k < oldRotation.Count)
 					Main.spriteBatch.Draw(texture, drawPos - Main.screenPosition, frame, color, oldRotation[k], new Vector2(xFrameSize, yFrameSize) / 2, Projectile.scale, SpriteEffects.None, 0f);
 			}
-
-			/*Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.AlphaBlend, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);*/
 
 			Main.spriteBatch.Draw(texture, Projectile.Center - Main.screenPosition, frame, lightColor, Projectile.rotation, new Vector2(xFrameSize, yFrameSize) / 2, Projectile.scale, SpriteEffects.None, 0f);
 
@@ -324,7 +319,7 @@ namespace StarlightRiver.Content.Items.Misc
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			dontHit = target;
 		}
@@ -551,31 +546,40 @@ namespace StarlightRiver.Content.Items.Misc
 
 		private void ManageTrails()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, TrailLength, new TriangularTip(4), factor => THICKNESS * Main.rand.NextFloat(0.75f, 1.25f) * 16, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				if (factor.X > 0.99f)
-					return Color.Transparent;
+				trail = new Trail(Main.instance.GraphicsDevice, TrailLength, new NoTip(), factor => THICKNESS * Main.rand.NextFloat(0.75f, 1.25f) * 16, factor =>
+							{
+								if (factor.X > 0.99f)
+									return Color.Transparent;
 
-				return Color.Yellow * 0.1f * EaseFunction.EaseCubicOut.Ease(1 - factor.X) * Fade;
-			});
+								return Color.Yellow * 0.1f * EaseFunction.EaseCubicOut.Ease(1 - factor.X) * Fade;
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, TrailLength, new TriangularTip(4), factor => THICKNESS * 3 * Main.rand.NextFloat(0.55f, 1.45f), factor =>
+			if (trail2 is null || trail2.IsDisposed)
 			{
-				float progress = EaseFunction.EaseCubicOut.Ease(1 - factor.X);
-				return Color.Lerp(Color.Yellow, Color.White, EaseFunction.EaseCubicIn.Ease(Math.Min(1.2f - progress, 1))) * progress * Fade;
-			});
+				trail2 = new Trail(Main.instance.GraphicsDevice, TrailLength, new NoTip(), factor => THICKNESS * 3 * Main.rand.NextFloat(0.55f, 1.45f), factor =>
+							{
+								float progress = EaseFunction.EaseCubicOut.Ease(1 - factor.X);
+								return Color.Lerp(Color.Yellow, Color.White, EaseFunction.EaseCubicIn.Ease(Math.Min(1.2f - progress, 1))) * progress * Fade;
+							});
+			}
 
 			trail2.Positions = cache2.ToArray();
 			trail2.NextPosition = Projectile.Center + Projectile.velocity;
 
-			trail3 ??= new Trail(Main.instance.GraphicsDevice, TrailLength, new TriangularTip(4), factor => THICKNESS * 2 * Main.rand.NextFloat(0.55f, 1.45f), factor =>
+			if (trail3 is null || trail3.IsDisposed)
 			{
-				float progress = EaseFunction.EaseCubicOut.Ease(1 - factor.X);
-				return Color.White * progress * Fade;
-			});
+				trail3 = new Trail(Main.instance.GraphicsDevice, TrailLength, new NoTip(), factor => THICKNESS * 2 * Main.rand.NextFloat(0.55f, 1.45f), factor =>
+							{
+								float progress = EaseFunction.EaseCubicOut.Ease(1 - factor.X);
+								return Color.White * progress * Fade;
+							});
+			}
 
 			trail3.Positions = cache2.ToArray();
 			trail3.NextPosition = Projectile.Center + Projectile.velocity;
@@ -586,13 +590,13 @@ namespace StarlightRiver.Content.Items.Misc
 			Effect effect = Filters.Scene["LightningTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.05f);
 			effect.Parameters["repeats"].SetValue(1f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 
 			trail?.Render(effect);
 			trail2?.Render(effect);
@@ -608,7 +612,7 @@ namespace StarlightRiver.Content.Items.Misc
 			return base.CanHitNPC(hitting);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			Projectile.extraUpdates = 0;
 			Projectile.timeLeft = FADE_TIME;
@@ -635,10 +639,10 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override void AI()
 		{
-			IEnumerable<NPC> targets = Main.npc.Where(x => x.active && !x.townNPC && !x.immortal && !x.dontTakeDamage && x.Distance(Projectile.Center) < 73);
+			IEnumerable<NPC> targets = Main.npc.Where(x => x.active && !x.townNPC && !x.immortal && !x.dontTakeDamage && x.Distance(Projectile.Center) < 125);
 			foreach (NPC target in targets)
 			{
-				target.AddBuff(ModContent.BuffType<BizarrePotionPoisonDebuff>(), 2);
+				target.AddBuff(ModContent.BuffType<BizarrePotionPoisonDebuff>(), 120);
 			}
 		}
 	}
@@ -823,41 +827,15 @@ namespace StarlightRiver.Content.Items.Misc
 		}
 	}
 
-	public class BizarrePotionGNPC : GlobalNPC
-	{
-		public override bool InstancePerEntity => true;
-
-		public bool infected = false;
-
-		public override void ResetEffects(NPC npc)
-		{
-			infected = false;
-		}
-
-		public override void UpdateLifeRegen(NPC npc, ref int damage)
-		{
-			if (infected)
-			{
-				if (npc.lifeRegen > 0)
-					npc.lifeRegen = 0;
-
-				npc.lifeRegen -= 24;
-
-				if (damage < 3)
-					damage = 3;
-			}
-		}
-	}
-
 	class BizarrePotionPoisonDebuff : SmartBuff
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public BizarrePotionPoisonDebuff() : base("Bizarre Poison", "You poisoned", true) { }
+		public BizarrePotionPoisonDebuff() : base("Bizarre Poison", "Deals 12 damage per second", true) { }
 
-		public override void Update(NPC NPC, ref int buffIndex)
+		public override void Update(NPC npc, ref int buffIndex)
 		{
-			NPC.GetGlobalNPC<BizarrePotionGNPC>().infected = true;
+			npc.lifeRegen -= 24;
 		}
 	}
 }

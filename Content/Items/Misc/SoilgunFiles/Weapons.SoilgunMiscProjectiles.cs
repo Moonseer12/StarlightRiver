@@ -159,7 +159,8 @@ namespace StarlightRiver.Content.Items.Misc.SoilgunFiles
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 13, new TriangularTip(4), factor => 4, factor => Color.Red * 0.8f * factor.X);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 13, new NoTip(), factor => 4, factor => Color.Red * 0.8f * factor.X);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.position + Projectile.velocity;
@@ -170,17 +171,17 @@ namespace StarlightRiver.Content.Items.Misc.SoilgunFiles
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * -0.01f);
 			effect.Parameters["repeats"].SetValue(1);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/LightningTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.LightningTrail.Value);
 
 			trail?.Render(effect);
 
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/ShadowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.ShadowTrail.Value);
 
 			trail?.Render(effect);
 		}
@@ -403,13 +404,13 @@ namespace StarlightRiver.Content.Items.Misc.SoilgunFiles
 			return true;
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
 			switch (Projectile.frame)
 			{
-				case 0: damage = (int)(damage * 1.3f); break; // platinum coin do more dmg then gold, gold more than silver, etc
-				case 1: damage = (int)(damage * 1.2f); break;
-				case 2: damage = (int)(damage * 1.1f); break;
+				case 0: modifiers.SourceDamage *= 1.3f; break; // platinum coin do more dmg then gold, gold more than silver, etc
+				case 1: modifiers.SourceDamage *= 1.2f; break;
+				case 2: modifiers.SourceDamage *= 1.1f; break;
 			}
 		}
 
@@ -520,7 +521,8 @@ namespace StarlightRiver.Content.Items.Misc.SoilgunFiles
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 13, new TriangularTip(4), factor => 16, factor => new Color(52, 21, 141) * 0.8f * factor.X);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 13, new NoTip(), factor => 16, factor => new Color(52, 21, 141) * 0.8f * factor.X);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.position + Projectile.velocity;
@@ -531,17 +533,17 @@ namespace StarlightRiver.Content.Items.Misc.SoilgunFiles
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * -0.01f);
 			effect.Parameters["repeats"].SetValue(1);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/ShadowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.ShadowTrail.Value);
 
 			trail?.Render(effect);
 
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 
 			trail?.Render(effect);
 		}
@@ -690,13 +692,13 @@ namespace StarlightRiver.Content.Items.Misc.SoilgunFiles
 
 		public override void SendExtraAI(BinaryWriter writer)
 		{
-			writer.WritePackedVector2(offset);
+			writer.WriteVector2(offset);
 			writer.Write(enemyID);
 		}
 
 		public override void ReceiveExtraAI(BinaryReader reader)
 		{
-			offset = reader.ReadPackedVector2();
+			offset = reader.ReadVector2();
 			enemyID = reader.ReadInt32();
 		}
 	}

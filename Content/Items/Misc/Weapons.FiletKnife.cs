@@ -2,7 +2,10 @@
 using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using Terraria.DataStructures;
 using Terraria.ID;
+using Terraria.ModLoader.IO;
 
 namespace StarlightRiver.Content.Items.Misc
 {
@@ -14,8 +17,7 @@ namespace StarlightRiver.Content.Items.Misc
 		{
 			DisplayName.SetDefault("Filet Knife");
 			Tooltip.SetDefault("Critical strikes carve chunks of flesh from enemies\n" +
-			"Devour chunks to heal and gain Blood Frenzy\n" +
-			"Blood Frenzy grants increased attack speed and decreased critical strike chance");
+			"Devour chunks to heal and gain {{BUFF:FiletFrenzyBuff}}");
 		}
 
 		public override void SetDefaults()
@@ -36,18 +38,16 @@ namespace StarlightRiver.Content.Items.Misc
 			Item.crit = 10;
 		}
 
-		public override void ModifyHitNPC(Player player, NPC target, ref int damage, ref float knockBack, ref bool crit)
+		public override void ModifyHitNPC(Player player, NPC target, ref NPC.HitModifiers modifiers)
 		{
 			if (player.HasBuff(ModContent.BuffType<FiletFrenzyBuff>()) && Main.rand.NextBool())
-				crit = false;
+				modifiers.DisableCrit();
 		}
 
-		public override void OnHitNPC(Player player, NPC target, int damage, float knockBack, bool crit)
+		public override void OnHitNPC(Player player, NPC target, NPC.HitInfo hit, int damageDone)
 		{
-			if (crit)
+			if (hit.Crit)
 			{
-				Helper.PlayPitched("Impacts/StabTiny", 0.8f, Main.rand.NextFloat(-0.3f, 0.3f), target.Center);
-
 				int itemType = Main.rand.Next(3) switch
 				{
 					0 => ModContent.ItemType<FiletGiblet1>(),
@@ -60,7 +60,13 @@ namespace StarlightRiver.Content.Items.Misc
 				if (target.GetGlobalNPC<FiletNPC>().DOT < 3) //TODO: Port to a proper stacking buff system later
 					target.GetGlobalNPC<FiletNPC>().DOT += 1;
 
-				Projectile.NewProjectile(player.GetSource_ItemUse(Item), target.Center, Vector2.Zero, ModContent.ProjectileType<FiletSlash>(), 0, 0, player.whoAmI, target.whoAmI);
+				if (Main.netMode == NetmodeID.Server)
+					return; //Server should only spawn the item + apply DOT and then stop before sounds and dust
+
+				Helper.PlayPitched("Impacts/StabTiny", 0.8f, Main.rand.NextFloat(-0.3f, 0.3f), target.Center);
+
+				if (Main.myPlayer == player.whoAmI)
+					Projectile.NewProjectile(player.GetSource_ItemUse(Item), target.Center, Vector2.Zero, ModContent.ProjectileType<FiletSlash>(), 0, 0, player.whoAmI, target.whoAmI);
 
 				var direction = Vector2.Normalize(target.Center - player.Center);
 
@@ -69,6 +75,9 @@ namespace StarlightRiver.Content.Items.Misc
 					Dust.NewDustPerfect(target.Center, DustID.Blood, direction.RotatedBy(Main.rand.NextFloat(-0.6f, 0.6f) + 3.14f) * Main.rand.NextFloat(0f, 6f), 0, default, 1.5f);
 					Dust.NewDustPerfect(target.Center, DustID.Blood, direction.RotatedBy(Main.rand.NextFloat(-0.2f, 0.2f) - 1.57f) * Main.rand.NextFloat(0f, 3f), 0, default, 0.8f);
 				}
+
+				player.TryGetModPlayer(out StarlightPlayer starlightPlayer);
+				starlightPlayer.SetHitPacketStatus(shouldRunProjMethods: true);
 			}
 		}
 	}
@@ -97,11 +106,8 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override bool OnPickup(Player player)
 		{
-			int healAmount = (int)MathHelper.Min(player.statLifeMax2 - player.statLife, 10);
-			player.HealEffect(10);
-			player.statLife += healAmount;
+			player.Heal(10);
 
-			player.AddBuff(BuffID.WellFed, 18000);
 			player.AddBuff(ModContent.BuffType<FiletFrenzyBuff>(), 600);
 			Terraria.Audio.SoundEngine.PlaySound(SoundID.Grab, player.position);
 			return false;
@@ -118,18 +124,33 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override bool InstancePerEntity => true;
 
-		public override void SetDefaults(NPC NPC)
+		public override void OnSpawn(NPC npc, IEntitySource source)
 		{
-			if (NPC.type == NPCID.BloodZombie && Main.rand.NextBool(50))
+			if (npc.type == NPCID.BloodZombie && Main.rand.NextBool(50))
 				hasSword = true;
-			base.SetDefaults(NPC);
+		}
+
+		public override void SendExtraAI(NPC npc, BitWriter bitWriter, BinaryWriter binaryWriter)
+		{
+			if (npc.type == NPCID.BloodZombie)
+			{
+				binaryWriter.Write(hasSword);
+			}
+		}
+
+		public override void ReceiveExtraAI(NPC npc, BitReader bitReader, BinaryReader binaryReader)
+		{
+			if (npc.type == NPCID.BloodZombie)
+			{
+				hasSword = binaryReader.ReadBoolean();
+			}
 		}
 
 		public override bool PreDraw(NPC NPC, SpriteBatch spriteBatch, Vector2 screenPos, Color drawColor)
 		{
 			if (hasSword)
 			{
-				Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.MiscItem + "FiletKnifeEmbedded").Value;
+				Texture2D tex = Assets.Items.Misc.FiletKnifeEmbedded.Value;
 				bool facingLeft = NPC.direction == -1;
 
 				Vector2 origin = facingLeft ? new Vector2(0, tex.Height) : new Vector2(tex.Width, tex.Height);
@@ -212,13 +233,13 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override void AI()
 		{
-			if (effect == null)
+			if (Main.netMode == NetmodeID.Server)
+				return; // Pretty much a pure visual effect projectile no need for server to do any of this.
+
+			effect ??= new BasicEffect(Main.instance.GraphicsDevice)
 			{
-				effect = new BasicEffect(Main.instance.GraphicsDevice)
-				{
-					VertexColorEnabled = true
-				};
-			}
+				VertexColorEnabled = true
+			};
 
 			NPC target = Main.npc[(int)Projectile.ai[0]];
 			Projectile.Center = target.Center;
@@ -245,7 +266,7 @@ namespace StarlightRiver.Content.Items.Misc
 				cache.Add(target.Center + direction * i);
 			}
 
-			trail = new Trail(Main.instance.GraphicsDevice, 20 + widthExtra * 2, new TriangularTip((int)((target.width + target.height) * 0.6f)), factor => 10 * (1 - Math.Abs(1 - factor - Projectile.timeLeft / (float)(BASE_TIMELEFT + 5))) * (Projectile.timeLeft / (float)BASE_TIMELEFT), factor => Color.Lerp(Color.Red, Color.DarkRed, factor.X) * 0.8f)
+			trail = new Trail(Main.instance.GraphicsDevice, 20 + widthExtra * 2, new NoTip(), factor => 10 * (1 - Math.Abs(1 - factor - Projectile.timeLeft / (float)(BASE_TIMELEFT + 5))) * (Projectile.timeLeft / (float)BASE_TIMELEFT), factor => Color.Lerp(Color.Red, Color.DarkRed, factor.X) * 0.8f)
 			{
 				Positions = cache.ToArray()
 			};
@@ -262,7 +283,7 @@ namespace StarlightRiver.Content.Items.Misc
 				return;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.World = world;
@@ -277,7 +298,7 @@ namespace StarlightRiver.Content.Items.Misc
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public FiletFrenzyBuff() : base("Blood Frenzy", "Increased melee speed, but decreased crit rate on Filet Knife", false, false) { }
+		public FiletFrenzyBuff() : base("Blood Frenzy", "Increased melee speed\nthe Filet Knife cannot critically hit enemies", false, false) { }
 
 		public override void Update(Player Player, ref int buffIndex)
 		{

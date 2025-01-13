@@ -14,7 +14,7 @@ namespace StarlightRiver.Core
 		{
 			progress.Message = "Crashing alien tech...";
 
-			foreach (int x in WorldGen.floatingIslandHouseX)
+			foreach (int x in GenVars.floatingIslandHouseX)
 			{
 				if (x == 0 || x == default)
 					continue;
@@ -34,7 +34,7 @@ namespace StarlightRiver.Core
 
 			for (int y = 10; y < Main.maxTilesY; y++)
 			{
-				if (Main.tile[x, y].HasTile && Main.tile[x, y + 1].HasTile)
+				if (Main.tile[x, y].HasTile && Main.tile[x + 1, y].HasTile)
 				{
 					if (Main.tile[x, y].BlockType == BlockType.Solid && Main.tile[x + 1, y].BlockType == BlockType.Solid && Helper.CheckAirRectangle(new Point16(x, y - 4), new Point16(2, 4)))
 					{

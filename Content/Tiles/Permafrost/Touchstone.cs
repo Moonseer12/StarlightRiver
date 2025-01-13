@@ -1,11 +1,19 @@
-﻿using StarlightRiver.Helpers;
+﻿using StarlightRiver.Content.Abilities;
+using StarlightRiver.Content.Buffs;
+using StarlightRiver.Content.Packets;
+using StarlightRiver.Core.Systems;
+using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Terraria.DataStructures;
+using Terraria.GameContent.Bestiary;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
 using Terraria.ModLoader.IO;
 using Terraria.ObjectData;
+using static Terraria.GameContent.Animations.Actions.NPCs;
 
 namespace StarlightRiver.Content.Tiles.Permafrost
 {
@@ -15,10 +23,22 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 		public override void SetStaticDefaults()
 		{
+			TileID.Sets.PreventsTileRemovalIfOnTopOfIt[Type] = true;
+			TileObjectData.newTile.DrawYOffset = 2;
 			TileObjectData.newTile.HookPostPlaceMyPlayer = new PlacementHook(ModContent.GetInstance<TouchstoneTileEntity>().Hook_AfterPlacement, -1, 0, false);
 			Main.tileLighted[Type] = true;
+			Main.tileSpelunker[Type] = true;
+			Main.tileOreFinderPriority[Type] = 490;//just below chests
+
+			TileID.Sets.AvoidedByMeteorLanding[Type] = true;//prevents meteor landing on aboveground structures
 
 			QuickBlock.QuickSetFurniture(this, 2, 4, DustID.Ice, SoundID.Tink, false, new Color(155, 200, 255), false, false, "Touchstone");
+			MinPick = int.MaxValue;
+		}
+
+		public override bool CanExplode(int i, int j)
+		{
+			return false;
 		}
 
 		public override bool PreDraw(int i, int j, SpriteBatch spriteBatch)
@@ -40,7 +60,7 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 				float cos1 = 1 + (float)Math.Cos(Main.GameUpdateCount / 10f);
 				auroraColor = new Color(0.5f + cos1 * 0.2f, 0.8f, 0.5f + sin1 * 0.2f);
 
-				Texture2D portalGlow = ModContent.Request<Texture2D>(AssetDirectory.SquidBoss + "PortalGlow").Value;
+				Texture2D portalGlow = Assets.Bosses.SquidBoss.PortalGlow.Value;
 
 				Color portalGlowColor = auroraColor;
 				portalGlowColor.A = 0;
@@ -107,6 +127,10 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 		public override bool RightClick(int i, int j)
 		{
+			// Prevent spawning a wisp if there is already one in the world (because their movement and killing is client-side there can be multiple in multiplayer)
+			if (Main.npc.Any(n => n.active && n.type == ModContent.NPCType<TouchstoneWisp>()))
+				return false;
+
 			Tile tile = Framing.GetTileSafely(i, j);
 			i -= tile.TileFrameX / 18;
 			j -= tile.TileFrameY / 18;
@@ -118,11 +142,23 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 			var entity = (TouchstoneTileEntity)TileEntity.ByID[index];
 
-			int NPCIndex = NPC.NewNPC(new EntitySource_TileInteraction(null, i, j), i * 16, j * 16, ModContent.NPCType<TouchstoneWisp>());
-			(Main.npc[NPCIndex].ModNPC as TouchstoneWisp).targetPos = entity.targetPoint;
-			(Main.npc[NPCIndex].ModNPC as TouchstoneWisp).owner = Main.LocalPlayer;
+			if (Main.netMode == NetmodeID.MultiplayerClient)
+			{
+				var packet = new SpawnNPC(i * 16, j * 16, ModContent.NPCType<TouchstoneWisp>(), ai0: entity.targetPoint.X, ai1: entity.targetPoint.Y);
+				packet.Send(-1, -1, false);
+			}
+
+			NPC.NewNPC(new EntitySource_TileInteraction(null, i, j), i * 16, j * 16, ModContent.NPCType<TouchstoneWisp>(), ai0: entity.targetPoint.X, ai1: entity.targetPoint.Y);
 
 			return true;
+		}
+
+		public override void MouseOver(int i, int j)
+		{
+			Player Player = Main.LocalPlayer;
+			Player.cursorItemIconID = ModContent.ItemType<Items.Hovers.GenericHover>();
+			Player.noThrow = 2;
+			Player.cursorItemIconEnabled = true;
 		}
 	}
 
@@ -157,8 +193,19 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 		{
 			targetPoint = tag.Get<Vector2>("Point");
 		}
+
+		public override void NetSend(BinaryWriter writer)
+		{
+			writer.WriteVector2(targetPoint);
+		}
+
+		public override void NetReceive(BinaryReader reader)
+		{
+			targetPoint = reader.ReadVector2();
+		}
 	}
 
+	[SLRDebug]
 	class TouchstoneItem : QuickTileItem
 	{
 		public TouchstoneItem() : base("Touchstone", "A guiding light", "Touchstone", 3, AssetDirectory.PermafrostTile) { }
@@ -166,13 +213,13 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 	class TouchstoneWisp : ModNPC, IDrawAdditive, IDrawPrimitive //not sure if this is really a great place to put this but ehhhh
 	{
-		public Vector2 targetPos;
-		public Player owner;
+
+		private ref float TargetX => ref NPC.ai[0];
+		private ref float TargetY => ref NPC.ai[1];
+		public Vector2 TargetPos => new(TargetX, TargetY);
 
 		private List<Vector2> cache;
 		private Trail trail;
-
-		private float Opacity => Math.Min(NPC.ai[1], 1);
 
 		public override string Texture => AssetDirectory.SquidBoss + "InkBlob";
 
@@ -191,24 +238,34 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 			NPC.lifeMax = 10;
 			NPC.noGravity = true;
 			NPC.dontTakeDamage = true;
+		}
 
-			owner = Main.LocalPlayer;
+		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
+		{
+			database.Entries.Remove(bestiaryEntry);
 		}
 
 		public override void AI()
 		{
-			if (owner != Main.LocalPlayer)
+			foreach (Player player in Main.player.Where(n => Vector2.Distance(n.Center, NPC.Center) < 1000))
+			{
+				player.AddBuff(ModContent.BuffType<TouchstoneWispBuff>(), 60);
+			}
+
+			if (TargetPos == Vector2.Zero)
 				return;
 
-			NPC.ai[1] += 0.1f;
+			if (NPC.Opacity < 1f)
+				NPC.Opacity += 0.1f;
+
 			NPC.rotation += Main.rand.NextFloat(0.2f);
 
 			var bounding = new Rectangle((int)Main.screenPosition.X, (int)Main.screenPosition.Y, Main.screenWidth, Main.screenHeight);
 			bounding.Inflate(-200, -200);
 
 			if (bounding.Contains(NPC.Center.ToPoint()))
-			{
-				NPC.velocity += Vector2.Normalize(targetPos - NPC.Center) * 0.05f;
+			{ //this is clientside only and not synced
+				NPC.velocity += Vector2.Normalize(TargetPos - NPC.Center) * 0.05f;
 
 				if (NPC.velocity.Length() > 6)
 					NPC.velocity = Vector2.Normalize(NPC.velocity) * 5.9f;
@@ -220,8 +277,8 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 			NPC.velocity += NPC.velocity.RotatedBy(1.57f) * (float)Math.Sin(Main.GameUpdateCount * 0.1f) * 0.05f;
 
-			float sin = 1 + (float)Math.Sin(NPC.ai[1]);
-			float cos = 1 + (float)Math.Cos(NPC.ai[1]);
+			float sin = 1 + (float)Math.Sin(NPC.Opacity);
+			float cos = 1 + (float)Math.Cos(NPC.Opacity);
 			Color color = new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f) * (NPC.timeLeft < 30 ? (NPC.timeLeft / 30f) : 1);
 
 			Lighting.AddLight(NPC.Center, color.ToVector3() * 0.5f);
@@ -232,20 +289,18 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 				d.customData = Main.rand.NextFloat(0.5f, 1);
 			}
 
-			if (Vector2.Distance(NPC.Center, targetPos) < 64 || targetPos == Vector2.Zero)
+			if (Vector2.Distance(NPC.Center, TargetPos) < 64 || TargetPos == Vector2.Zero)
 			{
 				NPC.velocity *= 0.91f;
 				NPC.scale *= 0.95f;
 
 				if (NPC.scale < 0.05f)
 				{
-					for (int k = 0; k < TileEntity.ByID.Count; k++)
+					foreach (TileEntity entity in TileEntity.ByID.Values)
 					{
-						TileEntity entity = TileEntity.ByID[k];
-
 						if (entity.type == ModContent.TileEntityType<TouchstoneTileEntity>() && Vector2.Distance(NPC.Center, entity.Position.ToVector2() * 16) < 120)
 						{
-							NPC.active = false;
+							NPC.Kill(); // because movement is client side the actual wisp doesn't get killed and replaced by the server until players move far away from it, which is probably okay
 
 							for (int n = 0; n < 50; n++)
 							{
@@ -259,7 +314,7 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 			if (StarlightWorld.squidBossArena.Contains((NPC.Center / 16).ToPoint()))
 			{
-				NPC.active = false;
+				NPC.Kill();
 
 				for (int n = 0; n < 50; n++)
 				{
@@ -268,8 +323,11 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 				}
 			}
 
-			ManageCaches();
-			ManageTrail();
+			if (Main.netMode != NetmodeID.Server)
+			{
+				ManageCaches();
+				ManageTrail();
+			}
 		}
 
 		public override bool PreDraw(SpriteBatch spriteBatch, Vector2 screenPos, Color drawColor)
@@ -299,22 +357,25 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 		protected void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 30, new TriangularTip(40 * 4), factor => factor * 12 * NPC.scale, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				float alpha = factor.X;
+				trail = new Trail(Main.instance.GraphicsDevice, 30, new NoTip(), factor => factor * 12 * NPC.scale, factor =>
+							{
+								float alpha = factor.X;
 
-				if (factor.X == 1)
-					alpha = 0;
+								if (factor.X == 1)
+									alpha = 0;
 
-				if (NPC.timeLeft < 20)
-					alpha *= NPC.timeLeft / 20f;
+								if (NPC.timeLeft < 20)
+									alpha *= NPC.timeLeft / 20f;
 
-				float sin = 1 + (float)Math.Sin(factor.X * 10);
-				float cos = 1 + (float)Math.Cos(factor.X * 10);
-				Color color = new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f) * (NPC.timeLeft < 30 ? (NPC.timeLeft / 30f) : 1);
+								float sin = 1 + (float)Math.Sin(factor.X * 10);
+								float cos = 1 + (float)Math.Cos(factor.X * 10);
+								Color color = new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f) * (NPC.timeLeft < 30 ? (NPC.timeLeft / 30f) : 1);
 
-				return color * alpha * Opacity;
-			});
+								return color * alpha * NPC.Opacity;
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = NPC.Center + NPC.velocity;
@@ -322,10 +383,7 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
-			if (owner != Main.LocalPlayer)
-				return;
-
-			Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.Assets + "Keys/GlowSoft").Value;
+			Texture2D tex = Assets.Keys.GlowSoft.Value;
 
 			float sin1 = 1 + (float)Math.Sin(Main.GameUpdateCount / 10f);
 			float cos1 = 1 + (float)Math.Cos(Main.GameUpdateCount / 10f);
@@ -333,29 +391,38 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 			for (int i = 0; i < 3; i++)
 			{
-				spriteBatch.Draw(tex, NPC.Center - Main.screenPosition, null, auroraColor * Opacity, 0f, tex.Size() / 2, 0.8f * NPC.scale, SpriteEffects.None, 0f);
+				spriteBatch.Draw(tex, NPC.Center - Main.screenPosition, null, auroraColor * NPC.Opacity, 0f, tex.Size() / 2, 0.8f * NPC.scale, SpriteEffects.None, 0f);
 			}
 		}
 
 		public void DrawPrimitives()
 		{
-			if (owner != Main.LocalPlayer)
-				return;
-
-			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
+			Effect effect = Terraria.Graphics.Effects.Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.05f);
 			effect.Parameters["repeats"].SetValue(2f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			trail?.Render(effect);
 
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/FireTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.FireTrail.Value);
 			trail?.Render(effect);
+		}
+	}
+
+	class TouchstoneWispBuff : SmartBuff
+	{
+		public override string Texture => "StarlightRiver/Assets/Buffs/ProtectiveShard";
+
+		public TouchstoneWispBuff() : base("Aurora Curiosity", "What lies below?\nIncreased mining speed", false) { }
+
+		public override void Update(Player player, ref int buffIndex)
+		{
+			player.pickSpeed /= 2;
 		}
 	}
 }

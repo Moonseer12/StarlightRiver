@@ -37,7 +37,7 @@ namespace StarlightRiver.Content.Items.Magnet
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Gray Goo");
-			Tooltip.SetDefault("Summons a swarm of nanomachines to devour enemies");
+			Tooltip.SetDefault("Summons a swarm of nanomachines to devour your enemies\n'Say the line, Armstrong!'");
 			ItemID.Sets.GamepadWholeScreenUseRange[Item.type] = true;
 			ItemID.Sets.LockOnIgnoresCollision[Item.type] = true;
 		}
@@ -251,7 +251,7 @@ namespace StarlightRiver.Content.Items.Magnet
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			float scale = 1;
 			int amount = 5;
@@ -332,7 +332,7 @@ namespace StarlightRiver.Content.Items.Magnet
 			Main.graphics.GraphicsDevice.Clear(Color.Transparent);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, null, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, null, Main.GameViewMatrix.TransformationMatrix);
 
 			var goos = Main.projectile.Where(n => n.active && n.type == ProjectileType<GrayGooProj>()).ToList();
 			goos.ForEach(n => DrawGooTarget(n, spriteBatch));
@@ -351,6 +351,8 @@ namespace StarlightRiver.Content.Items.Magnet
 
 		public override bool Update(Dust dust)
 		{
+			GrayGooMetaballs.visible = true;
+
 			dust.position += dust.velocity;
 			dust.velocity.Y += 0.2f;
 
@@ -371,6 +373,8 @@ namespace StarlightRiver.Content.Items.Magnet
 	{
 		public override bool Update(Dust dust)
 		{
+			GrayGooMetaballs.visible = true;
+
 			var data = (GrayGooDustData)dust.customData;
 			if (!data.proj.active)
 			{

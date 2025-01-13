@@ -15,7 +15,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Magma Arrow");
-			Tooltip.SetDefault("Becomes more cooled as it travels");
+			Tooltip.SetDefault("Cools down as it travels, applying less fire but dealing more damage and knockback");
 		}
 
 		public override void SetDefaults()
@@ -24,7 +24,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			Item.DamageType = DamageClass.Ranged;
 			Item.width = 8;
 			Item.height = 8;
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 			Item.consumable = true;
 			Item.knockBack = 0.5f;
 			Item.value = 10;
@@ -90,7 +90,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			SpriteBatch spriteBatch = Main.spriteBatch;
 
-			Texture2D tex = Request<Texture2D>(AssetDirectory.VitricItem + "NeedlerBloom").Value;
+			Texture2D tex = Assets.Items.Vitric.NeedlerBloom.Value;
 			Color bloomColor = Color.Orange;
 			bloomColor.A = 0;
 
@@ -111,16 +111,16 @@ namespace StarlightRiver.Content.Items.Vitric
 			return false;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (magmaRemaining > 0.4f)
 				target.AddBuff(BuffID.OnFire, 180);
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
-			damage += (int)(progressToDepletion * 8);
-			knockback *= 1 + progressToDepletion;
+			modifiers.SourceDamage += (int)(progressToDepletion * 8);
+			modifiers.Knockback *= 1 + progressToDepletion;
 		}
 
 		public override void Kill(int timeLeft)
@@ -135,7 +135,7 @@ namespace StarlightRiver.Content.Items.Vitric
 	internal class ArrowMagma : ModProjectile
 	{
 
-		private List<Vector2> oldPos = new();
+		private readonly List<Vector2> oldPos = new();
 
 		public override string Texture => AssetDirectory.Keys + "GlowHarshAlpha";
 
@@ -158,7 +158,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		public override bool PreDraw(ref Color lightColor)
 		{
-			Texture2D tex = ModContent.Request<Texture2D>(Texture).Value;
+			Texture2D tex = Assets.Keys.GlowHarshAlpha.Value;
 			Color color = Color.Orange;
 			color.A = 0;
 			color *= 0.2f;
@@ -212,7 +212,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			return false;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(BuffID.OnFire, 180);
 		}

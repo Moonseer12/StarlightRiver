@@ -2,7 +2,6 @@
 using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
-using Terraria.DataStructures;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
 
@@ -18,12 +17,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		public override void Load()
 		{
-			StarlightPlayer.PreHurtEvent += PreHurtKnockback;
-		}
-
-		public override void Unload()
-		{
-			StarlightPlayer.PreHurtEvent -= PreHurtKnockback;
+			StarlightPlayer.PostHurtEvent += PostHurtKnockback;
 		}
 
 		public override void SafeSetDefaults()
@@ -33,6 +27,8 @@ namespace StarlightRiver.Content.Items.Vitric
 			Item.accessory = true;
 			Item.width = 32;
 			Item.height = 32;
+
+			Item.value = Item.sellPrice(gold: 2);
 		}
 
 		public override void SafeUpdateEquip(Player Player)
@@ -43,18 +39,16 @@ namespace StarlightRiver.Content.Items.Vitric
 			Player.statDefense += 4;
 		}
 
-		private bool PreHurtKnockback(Player player, bool pvp, bool quiet, ref int damage, ref int hitDirection, ref bool crit, ref bool customDamage, ref bool playSound, ref bool genGore, ref PlayerDeathReason damageSource, ref int cooldownCounter)
+		private void PostHurtKnockback(Player player, Player.HurtInfo info)
 		{
 			var instance = GetEquippedInstance(player) as ShatteredAegis;
 
 			if (Equipped(player) && instance.cooldown <= 0)
 			{
 				Helper.PlayPitched("Magic/FireSpell", 1, 0.75f, player.Center);
-				Projectile.NewProjectile(player.GetSource_Accessory(Item), player.Center, Vector2.Zero, ModContent.ProjectileType<FireRing>(), 20 + damage, 0, player.whoAmI);
+				Projectile.NewProjectile(player.GetSource_Accessory(Item), player.Center, Vector2.Zero, ModContent.ProjectileType<FireRing>(), 20 + info.Damage, 0, player.whoAmI);
 				instance.cooldown = 60;
 			}
-
-			return true;
 		}
 	}
 
@@ -98,9 +92,9 @@ namespace StarlightRiver.Content.Items.Vitric
 			return Helper.CheckCircularCollision(Projectile.Center, (int)Radius + 20, targetHitbox);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
-			target.velocity += Vector2.Normalize(target.Center - Projectile.Center) * (20 + damage * 0.05f) * target.knockBackResist;
+			target.velocity += Vector2.Normalize(target.Center - Projectile.Center) * (20 + damageDone * 0.05f) * target.knockBackResist;
 			target.AddBuff(BuffID.OnFire, 180);
 
 			for (int k = 0; k < 4; k++)
@@ -139,7 +133,8 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		private void ManageTrail(ref Trail trail, List<Vector2> cache, int width)
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 40, new TriangularTip(40 * 4), factor => width, factor => new Color(255, 100 + (int)(100 * (float)Math.Sin(TimeFade * 3.14f)), 65) * (float)Math.Sin(TimeFade * 3.14f) * 0.5f);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 40, new NoTip(), factor => width, factor => new Color(255, 100 + (int)(100 * (float)Math.Sin(TimeFade * 3.14f)), 65) * (float)Math.Sin(TimeFade * 3.14f) * 0.5f);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = cache[39];
@@ -150,17 +145,17 @@ namespace StarlightRiver.Content.Items.Vitric
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * 0.01f);
 			effect.Parameters["repeats"].SetValue(6);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 
 			trail?.Render(effect);
 
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/FireTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.FireTrail.Value);
 
 			trail?.Render(effect);
 		}

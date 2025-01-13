@@ -11,7 +11,7 @@ namespace StarlightRiver.Content.Items.Misc
 
 		private int oldBarrier;
 
-		public SpikedMail() : base("Spiked Mail", "Barrier damage is applied to attackers as thorns \n+20 barrier") { }
+		public SpikedMail() : base("Spiked Mail", "{{Barrier}} damage is applied to attackers as thorns \n+20 {{barrier}}") { }
 
 		public override void Load()
 		{
@@ -53,7 +53,7 @@ namespace StarlightRiver.Content.Items.Misc
 				oldBarrier = player.GetModPlayer<BarrierPlayer>().barrier;
 		}
 
-		private void HitByNPC(Player player, NPC NPC, int damage, bool crit)
+		private void HitByNPC(Player player, NPC NPC, Player.HurtInfo hit)
 		{
 			if (!Equipped(player))
 				return;
@@ -63,7 +63,7 @@ namespace StarlightRiver.Content.Items.Misc
 			if (oldBarrier > barrierplayer.barrier)
 			{
 				int damageToDeal = oldBarrier - barrierplayer.barrier;
-				NPC.StrikeNPC(Math.Max(1, damageToDeal - NPC.defense / 2), 1, Math.Sign(NPC.Center.X - player.Center.X));
+				NPC.SimpleStrikeNPC(Math.Max(1, damageToDeal - NPC.defense / 2), Math.Sign(NPC.Center.X - player.Center.X), false, 1);
 			}
 		}
 	}

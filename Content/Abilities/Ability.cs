@@ -1,5 +1,6 @@
 ﻿using StarlightRiver.Content.Abilities.Faewhip;
 using StarlightRiver.Content.Abilities.ForbiddenWinds;
+using StarlightRiver.Content.Abilities.Hint;
 using StarlightRiver.Content.Packets;
 using Terraria.DataStructures;
 using Terraria.GameInput;
@@ -19,6 +20,8 @@ namespace StarlightRiver.Content.Abilities
 		public float ActivationCostBonus { get; set; }
 		public bool Active => ReferenceEquals(User.ActiveAbility, this);
 
+		public virtual string Name => "No name";
+		public virtual string Tooltip => "No tooltip";
 		public abstract string Texture { get; }
 		public virtual float ActivationCostDefault { get; }
 		public virtual string PreviewTexture => Texture + "Preview";
@@ -29,6 +32,9 @@ namespace StarlightRiver.Content.Abilities
 		public abstract bool HotKeyMatch(TriggersSet triggers, AbilityHotkeys abilityKeys);
 		public virtual void ModifyDrawInfo(ref PlayerDrawSet drawInfo) { }
 		public virtual void Reset() { }
+		/// <summary>
+		/// for visual effects like dusts and gores. Only executed by clients.
+		/// </summary>
 		public virtual void UpdateActiveEffects() { }
 		public virtual void DrawActiveEffects(SpriteBatch spriteBatch) { }
 		public virtual void UpdateFixed() { }
@@ -64,7 +70,9 @@ namespace StarlightRiver.Content.Abilities
 		{
 			return new Ability[]
 			{
-				new Dash(), new Whip()
+				new HintAbility(),
+				new Dash(),
+				new Whip(),
 			};
 		}
 	}

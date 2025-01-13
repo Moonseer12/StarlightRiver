@@ -1,5 +1,6 @@
 ﻿using StarlightRiver.Content.Items.Food;
 using System.Linq;
+using Terraria.ID;
 
 namespace StarlightRiver.Content.Buffs
 {
@@ -9,7 +10,7 @@ namespace StarlightRiver.Content.Buffs
 
 		public override string Texture => AssetDirectory.Buffs + "FoodBuff";
 
-		public override void ModifyBuffTip(ref string tip, ref int rare)
+		public override void ModifyBuffText(ref string buffName, ref string tip, ref int rare)
 		{
 			FoodBuffHandler mp = Main.LocalPlayer.GetModPlayer<FoodBuffHandler>();
 			foreach (Item Item in mp.Consumed.Where(n => n.ModItem is Ingredient))
@@ -30,6 +31,11 @@ namespace StarlightRiver.Content.Buffs
 	public class Full : SmartBuff
 	{
 		public Full() : base("Stuffed", "Cannot consume any more rich food", true) { }
+
+		public override void SetStaticDefaults()
+		{
+			BuffID.Sets.NurseCannotRemoveDebuff[Type] = true;
+		}
 
 		public override string Texture => AssetDirectory.Buffs + "Full";
 	}

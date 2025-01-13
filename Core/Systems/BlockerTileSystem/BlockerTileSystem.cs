@@ -11,17 +11,17 @@ namespace StarlightRiver.Core.Systems.BlockerTileSystem
 
 		public override void Load()
 		{
-			On.Terraria.Main.Update += UpdateCollision;
+			On_Main.DoUpdate += UpdateCollision;
 		}
 
 		public override void Unload()
 		{
-			On.Terraria.Main.Update -= UpdateCollision;
+			On_Main.DoUpdate -= UpdateCollision;
 		}
 
-		private void UpdateCollision(On.Terraria.Main.orig_Update orig, Main self, GameTime gameTime)
+		private void UpdateCollision(On_Main.orig_DoUpdate orig, Main self, ref GameTime gameTime)
 		{
-			orig(self, gameTime);
+			orig(self, ref gameTime);
 
 			if (Main.gameMenu && Main.netMode != NetmodeID.Server)
 				return;
@@ -37,7 +37,7 @@ namespace StarlightRiver.Core.Systems.BlockerTileSystem
 			var instance = new Blocker(internalName, activeFunction);
 
 			StarlightRiver.Instance.AddContent(instance);
-			StarlightRiver.Instance.AddContent(new LoaderTileItem(internalName + "Item", internalName + "Item", "debug item", internalName, -1, "StarlightRiver/Assets/Default", true, 0));
+			StarlightRiver.Instance.AddContent(new LoaderTileItem(internalName + "Item", internalName + "Item", "{{Debug}} item", internalName, -1, "StarlightRiver/Assets/Default", true, 0));
 			blockers.Add(instance);
 		}
 	}
@@ -66,6 +66,11 @@ namespace StarlightRiver.Core.Systems.BlockerTileSystem
 			TileID.Sets.DrawsWalls[Type] = true;
 			Main.tileBlockLight[Type] = false;
 			MinPick = int.MaxValue;
+		}
+
+		public override bool CanExplode(int i, int j)
+		{
+			return false;
 		}
 	}
 }

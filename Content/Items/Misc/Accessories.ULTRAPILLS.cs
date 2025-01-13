@@ -1,4 +1,5 @@
 ﻿using StarlightRiver.Content.Items.BaseTypes;
+using StarlightRiver.Content.Items.Gravedigger;
 using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
@@ -9,8 +10,6 @@ namespace StarlightRiver.Content.Items.Misc
 	public class Ultrapills : CursedAccessory
 	{
 		public override string Texture => AssetDirectory.MiscItem + Name;
-
-		public Ultrapills() : base(ModContent.Request<Texture2D>(AssetDirectory.MiscItem + "Ultrapills").Value) { }
 
 		public override void SetStaticDefaults()
 		{
@@ -28,6 +27,22 @@ namespace StarlightRiver.Content.Items.Misc
 			StarlightPlayer.CanUseItemEvent += PreventHealingItems;
 			StarlightItem.GetHealLifeEvent += PreventHealingItemsAgain;
 			StarlightItem.OnPickupEvent += PreventHeartPickups;
+		}
+
+		private void OnHitNPCProj(Player player, Projectile proj, NPC target, NPC.HitInfo info, int damageDone)
+		{
+			if (!Equipped(player))
+				return;
+
+			HitEffects(player, target, damageDone);
+		}
+
+		private void OnHitNPCItem(Player player, Item Item, NPC target, NPC.HitInfo info, int damageDone)
+		{
+			if (!Equipped(player))
+				return;
+
+			HitEffects(player, target, damageDone);
 		}
 
 		private void HitEffects(Player player, NPC target, int damage)
@@ -57,22 +72,6 @@ namespace StarlightRiver.Content.Items.Misc
 
 				Terraria.Audio.SoundEngine.PlaySound(SoundID.NPCDeath1 with { PitchVariance = 0.25f }, target.Center);
 			}
-		}
-
-		private void OnHitNPCProj(Player player, Projectile proj, NPC target, int damage, float knockback, bool crit)
-		{
-			if (!Equipped(player))
-				return;
-
-			HitEffects(player, target, damage);
-		}
-
-		private void OnHitNPCItem(Player player, Item Item, NPC target, int damage, float knockback, bool crit)
-		{
-			if (!Equipped(player))
-				return;
-
-			HitEffects(player, target, damage);
 		}
 
 		private void RemoveLifeRegen(Player player)
@@ -107,6 +106,23 @@ namespace StarlightRiver.Content.Items.Misc
 				return false;
 
 			return true;
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.HealingPotion);
+			recipe.AddIngredient<LivingBlood>(15);
+			recipe.AddIngredient(ItemID.DemoniteBar, 10);
+			recipe.AddTile(TileID.DemonAltar);
+			recipe.Register();
+
+			recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.HealingPotion);
+			recipe.AddIngredient<LivingBlood>(15);
+			recipe.AddIngredient(ItemID.CrimtaneBar, 10);
+			recipe.AddTile(TileID.DemonAltar);
+			recipe.Register();
 		}
 	}
 
@@ -197,7 +213,7 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override bool PreDraw(ref Color lightColor)
 		{
-			Texture2D tex = ModContent.Request<Texture2D>(Texture).Value;
+			Texture2D tex = Assets.Items.Misc.UltrapillBlood.Value;
 			Main.spriteBatch.Draw(tex, Projectile.Center - Projectile.velocity - Main.screenPosition, null, new Color(150, 10, 10), Projectile.rotation, tex.Size() / 2f, 0.65f, SpriteEffects.None, 0f);
 			return false;
 		}
@@ -223,7 +239,8 @@ namespace StarlightRiver.Content.Items.Misc
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 20, new RoundedTip(2), factor => 4.5f * factor, factor => Color.Lerp(new Color(50, 10, 10), new Color(35, 1, 1), factor.X));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 20, new RoundedTip(2), factor => 4.5f * factor, factor => Color.Lerp(new Color(50, 10, 10), new Color(35, 1, 1), factor.X));
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center;
@@ -234,7 +251,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Effect effect = Terraria.Graphics.Effects.Filters.Scene["pixelTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["pixelation"].SetValue(0.05f);
@@ -242,11 +259,11 @@ namespace StarlightRiver.Content.Items.Misc
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * -0.03f);
 			effect.Parameters["repeats"].SetValue(1);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/MagicPixel").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.MagicPixel.Value);
 
 			trail?.Render(effect);
 
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/Noise/ShaderNoiseLooping").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.Noise.ShaderNoiseLooping.Value);
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * 0.005f);
 			effect.Parameters["pixelation"].SetValue(0.35f);
 			trail?.Render(effect);

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Terraria.DataStructures;
+using Terraria.GameContent.Bestiary;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
@@ -48,6 +49,11 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 			NPC.dontCountMe = true;
 			NPC.hide = true;
 			NPC.damage = 0;
+		}
+
+		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
+		{
+			database.Entries.Remove(bestiaryEntry);
 		}
 
 		public override void DrawBehind(int index)
@@ -127,7 +133,7 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 						var pos = new Vector2(NPC.ai[2] == 1 ? NPC.position.X + NPC.width - NPC.ai[0] : NPC.position.X + NPC.ai[0], NPC.position.Y + 48);
 
 						if (Main.netMode != NetmodeID.MultiplayerClient)
-							Projectile.NewProjectile(NPC.GetSource_FromThis(), pos, Vector2.Zero, ProjectileType<CrystalWave>(), 20, 1);
+							Projectile.NewProjectile(NPC.GetSource_FromThis(), pos, Vector2.Zero, ProjectileType<CrystalWave>(), 20, 1, Owner: -1, ai0: pos.Y);
 					}
 
 					if (NPC.ai[0] > NPC.width)
@@ -155,7 +161,7 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 							NPC.ai[1] = 0;
 					}
 
-					if (NPC.ai[0] < 120) //dust before rising
+					if (NPC.ai[0] < 120 && Main.netMode != NetmodeID.Server) //dust before rising
 						Dust.NewDust(NPC.position, NPC.width, NPC.height, Terraria.ID.DustID.Torch);
 
 					if (NPC.ai[0] >= 150)
@@ -171,11 +177,7 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 								target.rocketTime = target.rocketTimeMax;
 								target.wingTime = target.wingTimeMax;
-								target.canJumpAgain_Cloud = true;
-								target.canJumpAgain_Blizzard = true;
-								target.canJumpAgain_Sandstorm = true;
-								target.canJumpAgain_Fart = true;
-								target.canJumpAgain_Sail = true;
+								target.RefreshExtraJumps();
 							}
 
 							var topColission = new Rectangle((int)NPC.position.X, (int)NPC.position.Y - 840, NPC.width, NPC.height);
@@ -230,7 +232,7 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 				float maxOffset = Main.masterMode ? 64 : 32;
 				float off = Math.Min((NPC.ai[0] - 120) / 30f * maxOffset, maxOffset);
-				Texture2D tex = Request<Texture2D>(AssetDirectory.VitricBoss + "CrystalWaveHot").Value;
+				Texture2D tex = Assets.Bosses.VitricBoss.CrystalWaveHot.Value;
 
 				for (int k = 0; k < NPC.width; k += 18)
 				{
@@ -239,7 +241,7 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 					if (eggIndex == k)//ugly but I this way its only checked once
 					{
-						Texture2D eggTex = Request<Texture2D>(AssetDirectory.VitricBoss + "MagMegg").Value;
+						Texture2D eggTex = Assets.Bosses.VitricBoss.MagMegg.Value;
 						spriteBatch.Draw(eggTex, pos, null, Color.White, 0.1f * ((float)rand.NextDouble() - 0.5f), default, 1, default, default);
 						spriteBatch.Draw(eggTex, pos2, null, Color.White, 0.1f * ((float)rand.NextDouble() - 0.5f), default, 1, default, default);
 					}
@@ -259,7 +261,7 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 						if (eggIndex == k)//ugly but I this way its only checked once
 						{
-							Texture2D eggTex = Request<Texture2D>(AssetDirectory.VitricBoss + "MagMegg").Value;
+							Texture2D eggTex = Assets.Bosses.VitricBoss.MagMegg.Value;
 							spriteBatch.Draw(eggTex, pos, null, Color.White, 1.57f + 0.1f * ((float)rand.NextDouble() - 0.5f), default, 1, default, default);
 							spriteBatch.Draw(eggTex, pos2, null, Color.White, 1.57f + 0.1f * ((float)rand.NextDouble() - 0.5f), default, 1, default, default);
 						}
@@ -275,7 +277,7 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
-			Texture2D tex = Request<Texture2D>(AssetDirectory.VitricBoss + "LongGlow").Value;
+			Texture2D tex = Assets.Bosses.VitricBoss.LongGlow.Value;
 
 			if (NPC.ai[1] == 2)
 			{
@@ -309,7 +311,9 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 	internal class CrystalWave : ModProjectile
 	{
-		private float startY;
+		public ref float StartY => ref Projectile.ai[0];
+
+		private bool loaded = false;
 
 		public override string Texture => AssetDirectory.VitricBoss + Name;
 
@@ -324,22 +328,22 @@ namespace StarlightRiver.Content.Bosses.VitricBoss
 
 		public override void AI()
 		{
-			float off = 128 * Projectile.timeLeft / 15 - 64 * (float)Math.Pow(Projectile.timeLeft, 2) / 225;
-			if (Projectile.timeLeft == 30)
+			if (!loaded && Main.netMode != NetmodeID.Server)
 			{
+				loaded = true;
 				Terraria.Audio.SoundEngine.PlaySound(Terraria.ID.SoundID.DD2_WitherBeastCrystalImpact, Projectile.Center);
 
 				for (int k = 0; k < Main.rand.Next(6); k++)
 				{
 					int type = Mod.Find<ModGore>("MagmiteGore").Type;
-					Gore.NewGoreDirect(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitY * 16, (Vector2.UnitY * -8).RotatedByRandom(0.2f), type, Main.rand.NextFloat(0.3f, 0.5f));
-					Dust.NewDustPerfect(Projectile.Center - Vector2.UnitY * 16, DustType<Dusts.Glow>(), (Vector2.UnitY * Main.rand.Next(-5, -2)).RotatedByRandom(0.8f), 0, new Color(255, 200, 100), 0.3f);
+					Gore.NewGoreDirect(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitY * 30, (Vector2.UnitY * -8).RotatedByRandom(0.2f), type, Main.rand.NextFloat(0.3f, 0.5f));
+					Dust.NewDustPerfect(Projectile.Center - Vector2.UnitY * 30, DustType<Dusts.Glow>(), (Vector2.UnitY * Main.rand.Next(-5, -2)).RotatedByRandom(0.8f), 0, new Color(255, 200, 100), 0.3f);
 				}
-
-				startY = Projectile.position.Y;
 			}
 
-			Projectile.position.Y = startY - off;
+			float off = 128 * Projectile.timeLeft / 15 - 64 * (float)Math.Pow(Projectile.timeLeft, 2) / 225;
+
+			Projectile.position.Y = StartY - off;
 		}
 
 		public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)

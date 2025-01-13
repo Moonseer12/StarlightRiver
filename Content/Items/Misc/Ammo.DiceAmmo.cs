@@ -11,7 +11,7 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Dice");
-			Tooltip.SetDefault("Every shot randomizes");
+			Tooltip.SetDefault("Every shot has randomized stats");
 		}
 
 		public override void SetDefaults()
@@ -22,7 +22,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Item.rare = ItemRarityID.Blue;
 			Item.value = Item.buyPrice(0, 0, 0, 40);
 
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 
 			Item.damage = 15;
 			Item.knockBack = 1.5f;
@@ -138,7 +138,7 @@ namespace StarlightRiver.Content.Items.Misc
 		public override bool PreDraw(ref Color lightColor)
 		{
 			Texture2D tex = TextureAssets.Projectile[Projectile.type].Value;
-			Texture2D glowTex = ModContent.Request<Texture2D>(Texture + "_Glow").Value;
+			Texture2D glowTex = Assets.Items.Misc.DiceProj_Glow.Value;
 			int width = tex.Width / FRAME_COUNT;
 			var sourceRect = new Rectangle(Projectile.frame * width, 0, width, tex.Height);
 			Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition, sourceRect, lightColor, Projectile.rotation, new Vector2(width, tex.Height) / 2, 1f, default, default);

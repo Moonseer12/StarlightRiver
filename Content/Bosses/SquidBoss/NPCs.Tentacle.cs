@@ -1,6 +1,8 @@
 ﻿using StarlightRiver.Content.NPCs.BaseTypes;
 using System;
 using System.Linq;
+using Terraria.DataStructures;
+using Terraria.GameContent.Bestiary;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
@@ -8,23 +10,31 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 {
 	public class Tentacle : ModNPC, IUnderwater
 	{
+		private const int MAX_SPLASH_COOLDOWN = 40;
+		public static Vector2 movementTargetToAssign;
+		public static int offsetFromParentBodyToAssign;
+		public static int parentIdToAssign;
+
 		public Vector2 movementTarget;
 		public Vector2 basePoint;
 		public int offsetFromParentBody;
 		public bool shouldDrawPortal;
 
-		public float stalkWaviness = 1;
+		public float stalkWaviness = 0;
 		public float zSpin = 0;
 		public int downwardDrawDistance = 28;
 
 		private NPC hurtboxActor;
 
+		private int splashCooldown = 0;
+
 		public SquidBoss Parent { get; set; }
 
 		public ref float State => ref NPC.ai[0];
 		public ref float Timer => ref NPC.ai[1];
+		public ref float Index => ref NPC.ai[2];
 
-		internal ArenaActor Arena => Parent.Arena;
+		internal ArenaActor Arena => Parent?.Arena;
 
 		public override string Texture => AssetDirectory.Invisible;
 
@@ -61,11 +71,25 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			NPC.knockBackResist = 0f;
 			NPC.HitSound = SoundID.NPCHit1;
 			NPC.dontTakeDamage = true;
+			NPC.netAlways = true;
 		}
 
-		public override void ScaleExpertStats(int numPlayers, float bossLifeScale)
+		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
 		{
-			NPC.lifeMax = Main.masterMode ? (int)(1000 * bossLifeScale) : (int)(750 * bossLifeScale);
+			database.Entries.Remove(bestiaryEntry);
+		}
+
+		public override void OnSpawn(IEntitySource source)
+		{
+			movementTarget = movementTargetToAssign;
+			offsetFromParentBody = offsetFromParentBodyToAssign;
+			basePoint = NPC.Center + Vector2.UnitY * 10;
+			Parent = Main.npc[parentIdToAssign].ModNPC as SquidBoss;
+		}
+
+		public override void ApplyDifficultyAndPlayerScaling(int numPlayers, float balance, float bossAdjustment)
+		{
+			NPC.lifeMax = Main.masterMode ? (int)(1000 * bossAdjustment) : (int)(750 * bossAdjustment);
 		}
 
 		public override bool CanHitPlayer(Player target, ref int cooldownSlot)
@@ -75,53 +99,61 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		public void DrawUnderWater(SpriteBatch spriteBatch, int NPCLayer)
 		{
-			if (Parent != null)
+			if (Parent is null || !Parent.NPC.active)
+				Parent = Main.npc.FirstOrDefault(n => n.active && n.type == NPCType<SquidBoss>())?.ModNPC as SquidBoss;
+
+			if (Parent is null)
 			{
-				Color glowColor;
-				Color auroraColor;
-
-				float sin1 = 1 + (float)Math.Sin(Timer / 10f);
-				float cos1 = 1 + (float)Math.Cos(Timer / 10f);
-				auroraColor = new Color(0.5f + cos1 * 0.2f, 0.8f, 0.5f + sin1 * 0.2f);
-
-				switch (State) //Select the color of this tentacle's glow
-				{
-					case 0: //vulnerable
-						float sin0 = 1 + (float)Math.Sin(Timer / 10f);
-						glowColor = new Color(255, 100 + (int)(sin0 * 50), 40);
-
-						break;
-
-					case 1: //invulnerable
-						glowColor = auroraColor;
-
-						if (Parent.Phase == (int)SquidBoss.AIStates.ThirdPhase)
-							glowColor = new Color(1.2f + sin1 * 0.1f, 0.7f + sin1 * -0.25f, 0.25f) * 0.8f;
-
-						break;
-
-					case 2: //dead
-						glowColor = new Color(100, 100, 150) * 0.5f;
-
-						break;
-
-					default: glowColor = Color.Black; break;
-				}
-
-				if (NPCLayer == 0)
-					DrawLowerLayer(spriteBatch, auroraColor, glowColor);
-
-				if (NPCLayer == 1 && Timer > 60)
-					DrawUpperLayer(spriteBatch, auroraColor, glowColor);
+				Mod.Logger.Warn("An auroracle tentacle couldn't find it's parent!");
+				NPC.active = false;
+				return;
 			}
+
+			Color glowColor;
+			Color auroraColor;
+
+			float sin1 = 1 + (float)Math.Sin(Timer / 10f);
+			float cos1 = 1 + (float)Math.Cos(Timer / 10f);
+			auroraColor = new Color(0.5f + cos1 * 0.2f, 0.8f, 0.5f + sin1 * 0.2f);
+
+			switch (State) //Select the color of this tentacle's glow
+			{
+				case 0: //vulnerable
+					float sin0 = 1 + (float)Math.Sin(Timer / 10f);
+					glowColor = new Color(255, 100 + (int)(sin0 * 50), 40);
+
+					break;
+
+				case 1: //invulnerable
+					glowColor = auroraColor;
+
+					if (Parent.Phase == (int)SquidBoss.AIStates.ThirdPhase)
+						glowColor = new Color(1.2f + sin1 * 0.1f, 0.7f + sin1 * -0.25f, 0.25f) * 0.8f;
+
+					break;
+
+				case 2: //dead
+					glowColor = new Color(100, 100, 150) * 0.5f;
+
+					break;
+
+				default: glowColor = Color.Black; break;
+			}
+
+			if (NPCLayer == 0)
+				DrawLowerLayer(spriteBatch, auroraColor, glowColor);
+
+			if (NPCLayer == 1 && Timer > 60)
+				DrawUpperLayer(spriteBatch, auroraColor, glowColor);
+
 		}
 
 		private void DrawLowerLayer(SpriteBatch spriteBatch, Color auroraColor, Color glowColor)
 		{
-			Texture2D top = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleTop").Value;
-			Texture2D glow = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleGlow").Value;
-			Texture2D glow2 = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleGlow2").Value;
-			Texture2D body = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleBody").Value;
+			Texture2D top = Assets.Bosses.SquidBoss.TentacleTop.Value;
+			Texture2D glow = Assets.Bosses.SquidBoss.TentacleGlow.Value;
+			Texture2D glow2 = Assets.Bosses.SquidBoss.TentacleGlow2.Value;
+			Texture2D body = Assets.Bosses.SquidBoss.TentacleBody.Value;
 
 			int extraLength = (int)(Math.Abs(offsetFromParentBody) * 0.15f);
 			int maxSegments = downwardDrawDistance + extraLength;
@@ -147,8 +179,8 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 				{
 					if (shouldDrawPortal && maxSegments >= 40 + extraLength)
 					{
-						Texture2D portal = Request<Texture2D>(AssetDirectory.SquidBoss + "Portal").Value;
-						Texture2D portalGlow = Request<Texture2D>(AssetDirectory.SquidBoss + "PortalGlow").Value;
+						Texture2D portal = Assets.Bosses.SquidBoss.Portal.Value;
+						Texture2D portalGlow = Assets.Bosses.SquidBoss.PortalGlow.Value;
 						var target = new Rectangle((int)posStill.X, (int)posStill.Y, (int)(0.8f * Math.Min(portal.Width, (int)((downwardDrawDistance - 28) / 24f * portal.Width))), (int)(portal.Height * 0.6f));
 						var target2 = new Rectangle((int)posStill.X, (int)posStill.Y + 6, (int)(Math.Min(portalGlow.Width, (int)((downwardDrawDistance - 28) / 24f * portalGlow.Width)) * 0.8f), (int)(portalGlow.Height * 0.6f));
 						spriteBatch.Draw(portal, target, null, auroraColor * 0.6f, 0, portal.Size() / 2, 0, 0);
@@ -176,17 +208,17 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		private void DrawUpperLayer(SpriteBatch spriteBatch, Color auroraColor, Color glowColor)
 		{
-			Texture2D top = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleTop").Value;
-			Texture2D glow = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleGlow").Value;
-			Texture2D glow2 = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleGlow2").Value;
-			Texture2D glowBlur = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleGlowBlur").Value;
-			Texture2D body = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleBody").Value;
-			Texture2D ring = Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleRing").Value;
+			Texture2D top = Assets.Bosses.SquidBoss.TentacleTop.Value;
+			Texture2D glow = Assets.Bosses.SquidBoss.TentacleGlow.Value;
+			Texture2D glow2 = Assets.Bosses.SquidBoss.TentacleGlow2.Value;
+			Texture2D glowBlur = Assets.Bosses.SquidBoss.TentacleGlowBlur.Value;
+			Texture2D body = Assets.Bosses.SquidBoss.TentacleBody.Value;
+			Texture2D ring = Assets.Bosses.SquidBoss.TentacleRing.Value;
 
 			if (shouldDrawPortal)
 			{
-				Texture2D portal = Request<Texture2D>(AssetDirectory.SquidBoss + "Portal").Value;
-				Texture2D portalGlow = Request<Texture2D>(AssetDirectory.SquidBoss + "PortalGlow").Value;
+				Texture2D portal = Assets.Bosses.SquidBoss.Portal.Value;
+				Texture2D portalGlow = Assets.Bosses.SquidBoss.PortalGlow.Value;
 				var target = new Rectangle((int)(basePoint.X - Main.screenPosition.X), (int)(basePoint.Y - Main.screenPosition.Y), Math.Min(portal.Width, (int)((downwardDrawDistance - 28) / 24f * portal.Width)), portal.Height);
 				var target2 = new Rectangle((int)(basePoint.X - Main.screenPosition.X), (int)(basePoint.Y - Main.screenPosition.Y) - 12, Math.Min(portalGlow.Width, (int)((downwardDrawDistance - 28) / 24f * portalGlow.Width)), portalGlow.Height);
 
@@ -270,13 +302,13 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			//Stalk
 			if (Vector2.Distance(NPC.Center, basePoint) > 32 && Helpers.Helper.CheckLinearCollision(NPC.Center, basePoint, player.Hitbox, out Vector2 intersect))
 			{
-				if (!StarlightRiver.debugMode)
-				{
-					if (intersect.X < player.Center.X)
-						player.velocity.X = Math.Max(6.5f, player.velocity.X * -1.05f);
-					else
-						player.velocity.X = Math.Min(-6.5f, player.velocity.X * -1.05f);
-				}
+				if (StarlightRiver.debugMode)
+					Main.NewText($"Stalk colliding {Main.rand.Next(2000)}");
+
+				if (intersect.X < player.Center.X)
+					player.velocity.X = Math.Max(6.5f, player.velocity.X * -1.05f);
+				else
+					player.velocity.X = Math.Min(-6.5f, player.velocity.X * -1.05f);
 
 				player.Hurt(Terraria.DataStructures.PlayerDeathReason.ByNPC(NPC.whoAmI), NPC.damage, NPC.Center.X > player.Center.X ? -1 : 1);
 				return true;
@@ -313,36 +345,38 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		public override void AI()
 		{
-			/* AI fields:
-             * 0: state
-             * 1: timer
-             */
-			if (Parent == null || !Parent.NPC.active)
-				NPC.active = false;
-
-			if (hurtboxActor is null || !hurtboxActor.active)
+			if (Parent == null || !Parent.NPC.active || Arena == null || !Arena.NPC.active)
 			{
-				int i = NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.Center.X, (int)NPC.Center.Y, NPCType<TentacleHurtbox>());
-				hurtboxActor = Main.npc[i];
-
-				var actor = Main.npc[i].ModNPC as TentacleHurtbox;
-
-				if (actor != null)
-					actor.tentacle = this;
-				else
-					hurtboxActor = null;
+				NPC.active = false;
+				return;
 			}
 
-			if ((State == 0 || State == 1) && Timer == 0)
-				basePoint = NPC.Center;
-
-			if (NPC.oldPos[0].Y > Arena.WaterLevelWorld && NPC.position.Y <= Arena.WaterLevelWorld || NPC.oldPos[0].Y + NPC.height <= Arena.WaterLevelWorld && NPC.position.Y + NPC.height > Arena.WaterLevelWorld)
+			if (Main.netMode != NetmodeID.MultiplayerClient && (hurtboxActor is null || !hurtboxActor.active))
 			{
+				TentacleHurtbox.tentacleToAssign = this;
+				int i = NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.Center.X, (int)NPC.Center.Y, NPCType<TentacleHurtbox>());
+				hurtboxActor = Main.npc[i]; //doesn't actually need to be synced since this just controls the hurtbox spawning failsafe
+			}
+
+			if ((State == 0 || State == 1) && Timer == 0 && Main.netMode != NetmodeID.MultiplayerClient)
+			{
+				basePoint = NPC.Center;
+				NPC.netUpdate = true;
+			}
+
+			splashCooldown--;
+
+			if ((NPC.oldPos[0].Y > Arena.WaterLevelWorld && NPC.position.Y <= Arena.WaterLevelWorld || NPC.oldPos[0].Y + NPC.height <= Arena.WaterLevelWorld && NPC.position.Y + NPC.height > Arena.WaterLevelWorld) && splashCooldown <= 0)
+			{
+				splashCooldown = MAX_SPLASH_COOLDOWN;
+
 				float tentacleSin = (float)Math.Sin(Timer / 20f) * stalkWaviness;
 
 				Helpers.Helper.PlayPitched("SquidBoss/LightSplash", 0.5f, 0, NPC.Center);
 				Helpers.Helper.PlayPitched("Magic/WaterWoosh", 0.8f, 0, NPC.Center);
-				Projectile.NewProjectile(NPC.GetSource_FromThis(), new Vector2(NPC.Center.X + tentacleSin * 30, Arena.WaterLevelWorld - 41), Vector2.Zero, ProjectileType<AuroraWaterSplash>(), 0, 0, Main.myPlayer);
+
+				if (Main.netMode != NetmodeID.MultiplayerClient)
+					Projectile.NewProjectile(NPC.GetSource_FromThis(), new Vector2(NPC.Center.X + tentacleSin * 30, Arena.WaterLevelWorld - 41), Vector2.Zero, ProjectileType<AuroraWaterSplash>(), 0, 0, Main.myPlayer);
 
 				for (int k = 0; k < 10; k++)
 				{
@@ -395,17 +429,19 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		public override void SendExtraAI(System.IO.BinaryWriter writer)
 		{
-			writer.Write(basePoint.X);
-			writer.Write(basePoint.Y);
-
-			writer.Write(movementTarget.X);
-			writer.Write(movementTarget.Y);
+			writer.WriteVector2(basePoint);
+			writer.WriteVector2(movementTarget);
+			writer.Write(offsetFromParentBody);
+			writer.Write(Parent.NPC.whoAmI);
 		}
 
 		public override void ReceiveExtraAI(System.IO.BinaryReader reader)
 		{
-			basePoint = new Vector2(reader.ReadSingle(), reader.ReadSingle());
-			movementTarget = new Vector2(reader.ReadSingle(), reader.ReadSingle());
+			basePoint = reader.ReadVector2();
+			movementTarget = reader.ReadVector2();
+			offsetFromParentBody = reader.ReadInt32();
+			int parentId = reader.ReadInt32();
+			Parent = Main.npc[parentId].ModNPC as SquidBoss;
 		}
 	}
 }

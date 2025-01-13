@@ -1,10 +1,16 @@
 ﻿using System;
+using System.IO;
 using Terraria.DataStructures;
 
 namespace StarlightRiver.Content.Archaeology
 {
 	public class ArtifactItemProj : ModProjectile
 	{
+		public static Color glowColorToAssign;
+		public static int itemTypeToAssign;
+		public static Vector2 sizeToAssign;
+		public static int sparkleTypeToAssign;
+
 		public override string Texture => itemTexture;
 
 		public string itemTexture = AssetDirectory.Invisible;
@@ -34,6 +40,14 @@ namespace StarlightRiver.Content.Archaeology
 			Projectile.timeLeft = 66;
 			Projectile.friendly = false;
 			Projectile.tileCollide = false;
+		}
+
+		public override void OnSpawn(IEntitySource source)
+		{
+			glowColor = glowColorToAssign;
+			itemType = itemTypeToAssign;
+			size = sizeToAssign;
+			sparkleType = sparkleTypeToAssign;
 		}
 
 		public override void AI()
@@ -67,11 +81,11 @@ namespace StarlightRiver.Content.Archaeology
 		{
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.Additive, SamplerState.PointClamp, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, BlendState.Additive, SamplerState.PointClamp, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			Texture2D mainTex = ModContent.Request<Texture2D>(Texture).Value;
-			Texture2D glowTex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Keys/Glow").Value;
-			Texture2D beamTex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Keys/Shine").Value;
+			Texture2D glowTex = Assets.Keys.Glow.Value;
+			Texture2D beamTex = Assets.Keys.Shine.Value;
 
 			Vector2 pos = Projectile.Center + mainTex.Size() / 2 - Main.screenPosition;
 			Main.spriteBatch.Draw(glowTex, pos, null, glowColor * (0.9f + (float)Math.Sin(Main.GameUpdateCount / 25f) * 0.1f), 0f, glowTex.Size() / 2, mainTex.Size() / glowTex.Size() * 1.4f * Fade, SpriteEffects.None, 0f);
@@ -90,7 +104,7 @@ namespace StarlightRiver.Content.Archaeology
 			DrawBeam(beamTex, pos, 1 - GetProgress(108), rot / 132f + 4.0f, 0.18f * GetProgress(108));
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			Main.spriteBatch.Draw(mainTex, pos, null, lightColor, 0f, mainTex.Size() / 2, Projectile.scale, SpriteEffects.None, 0f);
 			return false;
@@ -110,6 +124,22 @@ namespace StarlightRiver.Content.Archaeology
 		{
 			var itemDrop = new Rectangle((int)Projectile.position.X + (int)(size.X / 2), (int)Projectile.position.Y + (int)(size.Y / 2), 1, 1);
 			Item.NewItem(new EntitySource_Misc("Artifact"), itemDrop, itemType);
+		}
+
+		public override void SendExtraAI(BinaryWriter writer)
+		{
+			writer.WriteRGB(glowColor);
+			writer.Write(itemType);
+			writer.WriteVector2(size);
+			writer.Write(sparkleType);
+		}
+
+		public override void ReceiveExtraAI(BinaryReader reader)
+		{
+			glowColor = reader.ReadRGB();
+			itemType = reader.ReadInt32();
+			size = reader.ReadVector2();
+			sparkleType = reader.ReadInt32();
 		}
 	}
 }

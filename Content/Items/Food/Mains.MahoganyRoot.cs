@@ -4,11 +4,13 @@ namespace StarlightRiver.Content.Items.Food
 {
 	internal class MahoganyRoot : Ingredient
 	{
-		public MahoganyRoot() : base("+12 defense", 400, IngredientType.Main) { }
+		public MahoganyRoot() : base("+12 defense", 3600 * 5, IngredientType.Main) { }
 
 		public override void SafeSetDefaults()
 		{
 			Item.rare = ItemRarityID.Green;
+
+			Item.value = Item.sellPrice(silver: 15);
 		}
 
 		public override void BuffEffects(Player Player, float multiplier)

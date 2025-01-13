@@ -1,12 +1,13 @@
 ﻿using StarlightRiver.Core.Loaders.UILoading;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Terraria.UI;
 
 namespace StarlightRiver.Content.GUI
 {
 	public class MasterDeathTicker : SmartUIState
 	{
-		private static int animationTimer = 480;
+		public static int animationTimer = 480;
 		private static string name;
 		private static int deaths;
 		private static string tease;
@@ -23,7 +24,9 @@ namespace StarlightRiver.Content.GUI
 			animationTimer++;
 
 			var pos = new Vector2(Main.screenWidth / 2, Main.screenHeight / 2 - 120);
-			string message = "Deaths to " + name + ": " + (animationTimer < 60 ? (deaths - 1) : deaths);
+			string split = Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
+
+			string message = "Deaths to " + split + ": " + (animationTimer < 60 ? (deaths - 1) : deaths);
 
 			Color color = new Color(255, 100, 100) * (animationTimer > 420 ? 1 - (animationTimer - 420) / 60f : 1);
 
@@ -61,7 +64,7 @@ namespace StarlightRiver.Content.GUI
 					7 => "Are the logged hours on your Steam account accurate?",
 					8 => "You sure you wanna do this?",
 					9 => "There are easier difficulties you know.",
-					10 => "You can install CheatSheet from the mod browser.",
+					10 => "You can install Dragonlens from the mod browser.",
 					11 => "You can always come back after beating other bosses.",
 					12 => "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 					13 => "Just so you know, Starlight River does not have a pacifist route. Consider changing your playstyle.",

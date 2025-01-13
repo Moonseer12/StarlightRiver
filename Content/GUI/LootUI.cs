@@ -4,6 +4,7 @@ using StarlightRiver.Core.Loaders.UILoading;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Terraria.DataStructures;
 using Terraria.ID;
 using Terraria.UI;
 using static Terraria.ModLoader.ModContent;
@@ -12,6 +13,9 @@ namespace StarlightRiver.Content.GUI
 {
 	public class LootUI : SmartUIState
 	{
+		public Point16 OriginPosition;
+		//const float MaxDistance = 300;
+
 		private Item BigItem = new();
 		internal Item[] Selections = new Item[2];
 		internal List<string> Quotes;
@@ -38,29 +42,30 @@ namespace StarlightRiver.Content.GUI
 			};
 		}
 
-		public override void Update(GameTime gameTime)
+		public override void SafeUpdate(GameTime gameTime)
 		{
 			if (Main.gameMenu)
 				Visible = false;
-
+			//if (Vector2.Distance(OriginPosition.ToVector2(), Main.LocalPlayer.Center) > 500)
 			if (Selections[1] != null)
 			{
 				Visible = false;
 				Main.LocalPlayer.QuickSpawnItem(Main.LocalPlayer.GetSource_GiftOrReward(), BigItem);
 				Main.LocalPlayer.QuickSpawnItem(Main.LocalPlayer.GetSource_GiftOrReward(), Selections[0], Selections[0].stack);
 				Main.LocalPlayer.QuickSpawnItem(Main.LocalPlayer.GetSource_GiftOrReward(), Selections[1], Selections[1].stack);
-			}
 
-			base.Update(gameTime);
+				WorldGen.KillTile(OriginPosition.X, OriginPosition.Y);
+				NetMessage.SendTileSquare(Main.myPlayer, OriginPosition.X, OriginPosition.Y, 2, 2, TileChangeType.None);
+			}
 		}
 
 		public override void Draw(SpriteBatch spriteBatch)
 		{
 			//additive stuff, shame I have to do this but terraria really do be terraria
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.UIScaleMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, default, default, Main.UIScaleMatrix);
 
-			Texture2D glowTex = Request<Texture2D>(AssetDirectory.GUI + "ItemGlow").Value;
+			Texture2D glowTex = Assets.GUI.ItemGlow.Value;
 			float sin = (float)Math.Sin(Main.GameUpdateCount / 20f);
 			spriteBatch.Draw(glowTex, GetDimensions().Center(), null, Color.Gold * (0.4f + sin * 0.05f), Main.GameUpdateCount / 120f, glowTex.Size() / 2, 0.65f + sin * 0.03f, 0, 0);
 			spriteBatch.Draw(glowTex, GetDimensions().Center(), null, Color.White * (0.4f + sin * 0.05f), -Main.GameUpdateCount / 60f, glowTex.Size() / 2, 0.5f + sin * 0.03f, 0, 0);
@@ -68,7 +73,7 @@ namespace StarlightRiver.Content.GUI
 			spriteBatch.End();
 			spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, default, Main.UIScaleMatrix);
 
-			Texture2D tex = Request<Texture2D>("StarlightRiver/Assets/GUI/LootSlotOn").Value;
+			Texture2D tex = Assets.GUI.LootSlotOn.Value;
 
 			Utils.DrawBorderStringBig(spriteBatch, Quotes[QuoteID], GetDimensions().Center() + new Vector2(0, -80) - 1.5f * Terraria.GameContent.FontAssets.ItemStack.Value.MeasureString(Quotes[QuoteID]) / 2, Color.White, 0.5f);
 
@@ -82,7 +87,8 @@ namespace StarlightRiver.Content.GUI
 
 			if (!BigItem.IsAir)
 			{
-				Texture2D tex2 = BigItem.type > ItemID.Count ? Request<Texture2D>(BigItem.ModItem.Texture).Value : Request<Texture2D>("Terraria/Item_" + BigItem.type).Value;
+				Main.instance.LoadItem(BigItem.type);
+				Texture2D tex2 = BigItem.type > ItemID.Count ? Request<Texture2D>(BigItem.ModItem.Texture).Value : Terraria.GameContent.TextureAssets.Item[BigItem.type].Value;
 				float scale = tex2.Frame().Size().Length() < 47 ? 1 : 47f / tex2.Frame().Size().Length();
 
 				spriteBatch.Draw(tex2, GetDimensions().Center(), tex2.Frame(), Color.White, 0, tex2.Frame().Size() / 2, scale, 0, 0);
@@ -135,7 +141,7 @@ namespace StarlightRiver.Content.GUI
 		}
 	}
 
-	class LootSelection : UIElement
+	class LootSelection : SmartUIElement
 	{
 		internal Item Item;
 
@@ -149,7 +155,7 @@ namespace StarlightRiver.Content.GUI
 			if (Parent is LootUI)
 			{
 				var parent = Parent as LootUI;
-				Texture2D tex = parent.Selections.Any(n => n == Item) ? Request<Texture2D>("StarlightRiver/Assets/GUI/LootSlotOn").Value : Request<Texture2D>("StarlightRiver/Assets/GUI/LootSlot").Value;
+				Texture2D tex = parent.Selections.Any(n => n == Item) ? Assets.GUI.LootSlotOn.Value : Assets.GUI.LootSlot.Value;
 				float opacity = IsMouseHovering ? 1 : 0.6f;
 
 				spriteBatch.Draw(tex, GetDimensions().Position(), tex.Frame(), Color.White * opacity, 0, Vector2.Zero, 1, 0, 0);
@@ -174,7 +180,7 @@ namespace StarlightRiver.Content.GUI
 			}
 		}
 
-		public override void Click(UIMouseEvent evt)
+		public override void SafeClick(UIMouseEvent evt)
 		{
 			if (Parent is LootUI)
 			{

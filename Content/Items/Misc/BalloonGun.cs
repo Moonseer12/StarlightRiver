@@ -33,7 +33,6 @@ namespace StarlightRiver.Content.Items.Misc
 			Item.knockBack = 0;
 			Item.rare = ItemRarityID.Blue;
 			Item.value = Item.sellPrice(0, 1, 0, 0);
-			Item.channel = true;
 			Item.shoot = ProjectileType<BalloonGunBalloon>();
 			Item.shootSpeed = 10f;
 			Item.autoReuse = true;
@@ -236,7 +235,8 @@ namespace StarlightRiver.Content.Items.Misc
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, NUM_SEGMENTS, new TriangularTip(1), factor => 4, factor => Lighting.GetColor((int)(Projectile.Center.X / 16), (int)(Projectile.Center.Y / 16)));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, NUM_SEGMENTS, new NoTip(), factor => 4, factor => Lighting.GetColor((int)(Projectile.Center.X / 16), (int)(Projectile.Center.Y / 16)));
 
 			List<Vector2> positions = cache;
 			trail.NextPosition = positions[NUM_SEGMENTS - 1];
@@ -263,16 +263,16 @@ namespace StarlightRiver.Content.Items.Misc
 			Effect effect = Filters.Scene["OrbitalStrikeTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			effect.Parameters["alpha"].SetValue(1);
 
 			trail?.Render(effect);
 
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 
 		private float TotalLength(List<Vector2> points)
@@ -288,6 +288,7 @@ namespace StarlightRiver.Content.Items.Misc
 		}
 	}
 
+	// TODO: Rework to stackable buff
 	public class BalloonGunGNPC : GlobalNPC
 	{
 		public override bool InstancePerEntity => true;
@@ -297,9 +298,9 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void AI(NPC npc)
 		{
 			if (npc.noGravity)
-				npc.velocity.Y -= 0.005f * MathF.Pow(balloonsAttached, 0.7f);
+				npc.velocity.Y -= 0.005f * MathF.Pow(balloonsAttached, 0.7f) * npc.knockBackResist;
 			else if (!npc.collideY)
-				npc.velocity.Y -= 0.08f * MathF.Pow(balloonsAttached, 0.7f);
+				npc.velocity.Y -= 0.08f * MathF.Pow(balloonsAttached, 0.7f) * npc.knockBackResist;
 		}
 	}
 }

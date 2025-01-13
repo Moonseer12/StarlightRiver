@@ -34,14 +34,10 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 		public override void AddRecipes()
 		{
 			Recipe recipe = CreateRecipe();
-			recipe.AddIngredient(ItemID.DemoniteBar, 10);
-			recipe.AddIngredient(ModContent.ItemType<AncientGear>(), 8);
+			recipe.AddIngredient(ItemID.DesertFossil, 15);
+			recipe.AddIngredient(ModContent.ItemType<AncientGear>(), 4);
 			recipe.AddTile(TileID.Anvils);
-
-			Recipe recipe2 = CreateRecipe();
-			recipe2.AddIngredient(ItemID.CrimtaneBar, 10);
-			recipe2.AddIngredient(ModContent.ItemType<AncientGear>(), 8);
-			recipe2.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -127,9 +123,9 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			// Draw is called for each mount texture we provide, so we check drawType to avoid duplicate draws.
 			if (drawType == 0)
 			{
-				Texture2D platformTex = ModContent.Request<Texture2D>(AssetDirectory.SteampunkItem + "CogwheelMount").Value;
-				Texture2D wheelTex = ModContent.Request<Texture2D>(AssetDirectory.SteampunkItem + "CogwheelMount_Wheel").Value;
-				Texture2D baseTex = ModContent.Request<Texture2D>(AssetDirectory.SteampunkItem + "CogwheelMount_Base").Value;
+				Texture2D platformTex = Assets.Items.SteampunkSet.CogwheelMount.Value;
+				Texture2D wheelTex = Assets.Items.SteampunkSet.CogwheelMount_Wheel.Value;
+				Texture2D baseTex = Assets.Items.SteampunkSet.CogwheelMount_Base.Value;
 				Vector2 drawPos = drawPosition;
 				playerDrawData.Add(new DrawData(baseTex, drawPos + new Vector2(0, 17 + (int)(2 * Math.Sin(((CogWheelSpecificData)drawPlayer.mount._mountSpecificData).rotation * 2))), new Rectangle(0, 0, platformTex.Width, platformTex.Height), drawColor, drawPlayer.fullRotation, baseTex.Size() / 2 / new Vector2(1, 3) + new Vector2(0, 17), drawScale, SpriteEffects.None, 0));
 				playerDrawData.Add(new DrawData(wheelTex, drawPos + new Vector2(0, 17 + (int)(1 * Math.Sin(((CogWheelSpecificData)drawPlayer.mount._mountSpecificData).rotation * 2))), new Rectangle(0, 0, wheelTex.Width, wheelTex.Height), drawColor, ((CogWheelSpecificData)drawPlayer.mount._mountSpecificData).rotation, wheelTex.Size() / 2, drawScale, SpriteEffects.None, 0));
@@ -182,14 +178,6 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			mounted = false;
 		}
 
-		public override bool PreHurt(bool pvp, bool quiet, ref int damage, ref int hitDirection, ref bool crit, ref bool customDamage, ref bool playSound, ref bool genGore, ref PlayerDeathReason damageSource, ref int cooldownCounter)
-		{
-			if (damageSource.SourceOtherIndex == 3 && mounted)
-				return false;
-
-			return base.PreHurt(pvp, quiet, ref damage, ref hitDirection, ref crit, ref customDamage, ref playSound, ref genGore, ref damageSource, ref cooldownCounter);
-		}
-
 		public override void PostUpdate()
 		{
 			if (!mounted)
@@ -218,6 +206,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			{
 				direction = new Vector2(0, -1);
 				dustPos = Player.Center + new Vector2(Player.direction * 15, 45 + Player.velocity.Y * 2);
+				Player.fallStart = (int)(Player.position.Y / 16f);
 			}
 
 			if (Player.velocity.X == 0 && climbing || Player.velocity.Y == 0)
@@ -337,11 +326,10 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			return base.CanHitNPC(target);
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
-			hitDirection = Math.Sign(Player.direction);
-			damage = (int)(damage * MathHelper.Lerp(0.4f, 1.6f, MathHelper.Min(11, Player.velocity.Length()) / 11f));
-			base.ModifyHitNPC(target, ref damage, ref knockback, ref crit, ref hitDirection);
+			modifiers.HitDirectionOverride = Math.Sign(Player.direction);
+			modifiers.FinalDamage *= MathHelper.Lerp(0.4f, 1.6f, MathHelper.Min(11, Player.velocity.Length()) / 11f);
 		}
 	}
 }

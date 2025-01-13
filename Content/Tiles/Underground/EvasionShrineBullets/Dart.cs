@@ -1,13 +1,19 @@
 ﻿using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using Terraria.DataStructures;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
 
 namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 {
-	class Dart : ModProjectile, IDrawPrimitive
+	class Dart : EvasionProjectile, IDrawPrimitive
 	{
+		public static Vector2 midPointToAssign;
+		public static Vector2 endPointToAssign;
+		public static int durationToAssign;
+
 		private List<Vector2> cache;
 		private Trail trail;
 
@@ -37,6 +43,13 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			Projectile.timeLeft = 120;
 			Projectile.tileCollide = false;
 			Projectile.penetrate = -1;
+		}
+
+		public override void OnSpawn(IEntitySource source)
+		{
+			midPoint = midPointToAssign;
+			endPoint = endPointToAssign;
+			duration = durationToAssign;
 		}
 
 		public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
@@ -69,16 +82,11 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 
 			Projectile.rotation = (Projectile.position - Projectile.oldPos[0]).ToRotation();
 
-			ManageCaches();
-			ManageTrail();
-		}
-
-		public override void OnHitPlayer(Player target, int damage, bool crit)
-		{
-			parent.lives--;
-
-			if (Main.rand.NextBool(10000))
-				Main.NewText("Skill issue.");
+			if (Main.netMode != NetmodeID.Server)
+			{
+				ManageCaches();
+				ManageTrail();
+			}
 		}
 
 		private Vector2 PointOnSpline(float progress)
@@ -118,7 +126,7 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 
 			if (timer < 30)
 			{
-				Texture2D tellTex = ModContent.Request<Texture2D>(AssetDirectory.GUI + "Line").Value;
+				Texture2D tellTex = Assets.GUI.Line.Value;
 				float alpha = (float)Math.Sin(timer / 30f * 3.14f);
 
 				for (int k = 0; k < 20; k++)
@@ -150,15 +158,18 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 30, new TriangularTip(40 * 4), factor => factor * 30, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				float alpha = 1;
+				trail = new Trail(Main.instance.GraphicsDevice, 30, new NoTip(), factor => factor * 30, factor =>
+							{
+								float alpha = 1;
 
-				if (Projectile.timeLeft < 20)
-					alpha = Projectile.timeLeft / 20f;
+								if (Projectile.timeLeft < 20)
+									alpha = Projectile.timeLeft / 20f;
 
-				return new Color(50 + (int)(factor.X * 150), 80, 255) * (float)Math.Sin(factor.X * 3.14f) * alpha;
-			});
+								return new Color(50 + (int)(factor.X * 150), 80, 255) * (float)Math.Sin(factor.X * 3.14f) * alpha;
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -169,15 +180,29 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.05f);
 			effect.Parameters["repeats"].SetValue(2f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/ShadowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.ShadowTrail.Value);
 
 			trail?.Render(effect);
+		}
+
+		public override void SendExtraAI(BinaryWriter writer)
+		{
+			writer.WriteVector2(midPoint);
+			writer.WriteVector2(endPoint);
+			writer.Write(duration);
+		}
+
+		public override void ReceiveExtraAI(BinaryReader reader)
+		{
+			midPoint = reader.ReadVector2();
+			endPoint = reader.ReadVector2();
+			duration = reader.ReadInt32();
 		}
 	}
 }

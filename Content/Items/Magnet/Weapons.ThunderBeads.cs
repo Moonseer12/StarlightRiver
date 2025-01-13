@@ -1,6 +1,8 @@
 ﻿using StarlightRiver.Content.Dusts;
 using StarlightRiver.Helpers;
 using System.Collections.Generic;
+using System.Linq;
+using Terraria.DataStructures;
 using Terraria.GameContent.Creative;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
@@ -20,9 +22,22 @@ namespace StarlightRiver.Content.Items.Magnet
 
 		public override void SetDefaults()
 		{
-			Item.DefaultToWhip(ModContent.ProjectileType<ThunderBeadsProj>(), 30, 1.2f, 5f, 25);
+			Item.DefaultToWhip(ModContent.ProjectileType<ThunderBeadsProj>(), 34, 1.2f, 5f, 25);
 			Item.value = Item.sellPrice(0, 2, 0, 0);
 			Item.rare = ItemRarityID.Orange;
+		}
+
+		public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
+		{
+			return !Main.projectile.Any(n => n.active && n.type == type && n.owner == player.whoAmI);
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ModContent.ItemType<ChargedMagnet>(), 6);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -59,7 +74,7 @@ namespace StarlightRiver.Content.Items.Magnet
 
 		public override void Load()
 		{
-			On.Terraria.Projectile.FillWhipControlPoints += OverrideWhipControlPoints;
+			On_Projectile.FillWhipControlPoints += OverrideWhipControlPoints;
 			base.Load();
 		}
 
@@ -126,19 +141,15 @@ namespace StarlightRiver.Content.Items.Magnet
 			return base.PreAI();
 		}
 
-		public override void ArcAI()
-		{
-			//xFrame = 0;
-		}
-
 		public override bool ShouldDrawSegment(int segment)
 		{
 			return segment % 3 == 0;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			ableToHit = false;
+
 			if (!embedded)
 			{
 				Projectile.ownerHitCheck = false;
@@ -189,8 +200,8 @@ namespace StarlightRiver.Content.Items.Magnet
 			DrawPrimitives();
 			if (embedded)
 			{
-				Main.spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
-				Texture2D bloomTex = ModContent.Request<Texture2D>(AssetDirectory.Keys + "Glow").Value;
+				Main.spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
+				Texture2D bloomTex = Assets.Keys.Glow.Value;
 				for (int i = 0; i < cache.Count - 1; i++)
 				{
 					if (i % 3 != 0)
@@ -202,7 +213,7 @@ namespace StarlightRiver.Content.Items.Magnet
 				Main.spriteBatch.End();
 			}
 
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 
 		private void ManageCache()
@@ -228,22 +239,28 @@ namespace StarlightRiver.Content.Items.Magnet
 		private void ManageTrails()
 		{
 			Vector2 endPoint = embedded ? target.Center : cache[segments];
-			trail ??= new Trail(Main.instance.GraphicsDevice, segments + 1, new TriangularTip(4), factor => 16, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				if (factor.X > 0.99f)
-					return Color.Transparent;
+				trail = new Trail(Main.instance.GraphicsDevice, segments + 1, new NoTip(), factor => 16, factor =>
+							{
+								if (factor.X > 0.99f)
+									return Color.Transparent;
 
-				return new Color(160, 220, 255) * fade * 0.1f * EaseFunction.EaseCubicOut.Ease(1 - factor.X);
-			});
+								return new Color(160, 220, 255) * fade * 0.1f * EaseFunction.EaseCubicOut.Ease(1 - factor.X);
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = endPoint;
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, segments + 1, new TriangularTip(4), factor => 3 * Main.rand.NextFloat(0.55f, 1.45f), factor =>
+			if (trail2 is null || trail2.IsDisposed)
 			{
-				float progress = EaseFunction.EaseCubicOut.Ease(1 - factor.X);
-				return Color.Lerp(baseColor, endColor, EaseFunction.EaseCubicIn.Ease(1 - progress)) * fade * progress;
-			});
+				trail2 = new Trail(Main.instance.GraphicsDevice, segments + 1, new NoTip(), factor => 3 * Main.rand.NextFloat(0.55f, 1.45f), factor =>
+							{
+								float progress = EaseFunction.EaseCubicOut.Ease(1 - factor.X);
+								return Color.Lerp(baseColor, endColor, EaseFunction.EaseCubicIn.Ease(1 - progress)) * fade * progress;
+							});
+			}
 
 			trail2.Positions = cache2.ToArray();
 			trail2.NextPosition = endPoint;
@@ -255,21 +272,22 @@ namespace StarlightRiver.Content.Items.Magnet
 			Effect effect = Filters.Scene["LightningTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.05f);
 			effect.Parameters["repeats"].SetValue(1f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 
 			trail?.Render(effect);
 			trail2?.Render(effect);
 		}
 
-		private void OverrideWhipControlPoints(On.Terraria.Projectile.orig_FillWhipControlPoints orig, Projectile proj, List<Vector2> controlPoints)
+		private void OverrideWhipControlPoints(On_Projectile.orig_FillWhipControlPoints orig, Projectile proj, List<Vector2> controlPoints)
 		{
 			orig(proj, controlPoints);
+
 			if (proj.ModProjectile is ThunderBeadsProj modProj && modProj.embedded)
 			{
 				proj.WhipPointsForCollision.Clear();

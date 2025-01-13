@@ -25,19 +25,20 @@ namespace StarlightRiver.Content.Items.Vitric
 			Item.useAnimation = 18;
 			Item.useStyle = ItemUseStyleID.Swing;
 			Item.knockBack = 7.5f;
-			Item.value = 1000;
 			Item.rare = ItemRarityID.Green;
 			Item.UseSound = SoundID.Item1;
 			Item.autoReuse = false;
 			Item.useTurn = true;
+
+			Item.value = Item.sellPrice(gold: 1);
 		}
 
 		public override bool? CanHitNPC(Player Player, NPC target)
 		{
-			return !broken;
+			return !broken ? null : false;
 		}
 
-		public override void OnHitNPC(Player player, NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(Player player, NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (!broken)
 			{
@@ -68,6 +69,15 @@ namespace StarlightRiver.Content.Items.Vitric
 
 			return true;
 		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ModContent.ItemType<SandstoneChunk>(), 8);
+			recipe.AddIngredient(ModContent.ItemType<VitricOre>(), 12);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
+		}
 	}
 
 	internal class VitricSwordProjectile : ModProjectile
@@ -81,6 +91,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			Projectile.width = 12;
 			Projectile.height = 18;
 			Projectile.friendly = true;
+			Projectile.hostile = false;
 			Projectile.penetrate = -1;
 			Projectile.timeLeft = 120;
 			Projectile.tileCollide = false;
@@ -93,7 +104,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			DisplayName.SetDefault("Enchanted Glass");
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			Terraria.Audio.SoundEngine.PlaySound(SoundID.Item27);
 		}

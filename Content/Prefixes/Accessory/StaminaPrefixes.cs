@@ -51,21 +51,21 @@ namespace StarlightRiver.Content.Prefixes.Accessory
 
 	internal class StaminaPrefix1 : StaminaPrefix
 	{
-		public StaminaPrefix1() : base(2, "Springy", "+2 stamina regeneration") { }
+		public StaminaPrefix1() : base(1, "Sparkling", "+1 Starlight regeneration") { }
 	}
 
 	internal class StaminaPrefix2 : StaminaPrefix
 	{
-		public StaminaPrefix2() : base(4, "Energetic", "+4 stamina regeneration") { }
+		public StaminaPrefix2() : base(2, "Shining", "+2 Starlight regeneration") { }
 	}
 
 	internal class StaminaPrefix3 : StaminaPrefix
 	{
-		public StaminaPrefix3() : base(6, "Empowered", "+6 stamina regeneration") { }
+		public StaminaPrefix3() : base(3, "Glowing", "+3 Starlight regeneration") { }
 	}
 
 	internal class StaminaPrefix4 : StaminaPrefix
 	{
-		public StaminaPrefix4() : base(8, "Overcharged", "+8 stamina regeneration") { }
+		public StaminaPrefix4() : base(4, "Radiant", "+4 Starlight regeneration") { }
 	}
 }

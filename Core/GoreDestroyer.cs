@@ -6,7 +6,7 @@ namespace StarlightRiver.Core
 	{
 		public override void Load() //extremely hacky but it works, ty Mirsario
 		{
-			On.Terraria.Gore.NewGore_IEntitySource_Vector2_Vector2_int_float += (orig, entitySource, position, velocity, type, scale) =>
+			On_Gore.NewGore_IEntitySource_Vector2_Vector2_int_float += (orig, entitySource, position, velocity, type, scale) =>
 			{
 				int result = orig(entitySource, position, velocity, type, scale);
 
@@ -15,7 +15,7 @@ namespace StarlightRiver.Core
 				return result;
 			};
 
-			On.Terraria.Gore.NewGoreDirect_IEntitySource_Vector2_Vector2_int_float += (orig, entitySource, position, velocity, type, scale) =>
+			On_Gore.NewGoreDirect_IEntitySource_Vector2_Vector2_int_float += (orig, entitySource, position, velocity, type, scale) =>
 			{
 				Gore result = orig(entitySource, position, velocity, type, scale);
 
@@ -24,7 +24,7 @@ namespace StarlightRiver.Core
 				return result;
 			};
 
-			On.Terraria.Gore.NewGorePerfect_IEntitySource_Vector2_Vector2_int_float += (orig, entitySource, position, velocity, type, scale) =>
+			On_Gore.NewGorePerfect_IEntitySource_Vector2_Vector2_int_float += (orig, entitySource, position, velocity, type, scale) =>
 			{
 				Gore result = orig(entitySource, position, velocity, type, scale);
 
@@ -42,7 +42,7 @@ namespace StarlightRiver.Core
 			if (entitySource is EntitySource_Death deathSource3 && deathSource3.Entity is NPC npc3 && npc3.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)
 				Main.gore[goreID].active = false;
 
-			if (entitySource is EntitySource_OnHit deathSource2 && deathSource2.EntityStruck is NPC npc2 && npc2.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)
+			if (entitySource is EntitySource_OnHit deathSource2 && deathSource2.Entity is NPC npc2 && npc2.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)
 				Main.gore[goreID].active = false;
 
 			if (entitySource is EntitySource_Parent deathSource4 && deathSource4.Entity is NPC npc4 && npc4.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)
@@ -54,7 +54,7 @@ namespace StarlightRiver.Core
 			if (entitySource is EntitySource_HitEffect deathSource && deathSource.Entity is NPC npc && npc.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)
 				gore.active = false;
 
-			if (entitySource is EntitySource_OnHit deathSource2 && deathSource2.EntityStruck is NPC npc2 && npc2.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)
+			if (entitySource is EntitySource_OnHit deathSource2 && deathSource2.Entity is NPC npc2 && npc2.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)
 				gore.active = false;
 
 			if (entitySource is EntitySource_Death deathSource3 && deathSource3.Entity is NPC npc3 && npc3.GetGlobalNPC<GoreDestroyerNPC>().destroyGore)

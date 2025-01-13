@@ -1,4 +1,5 @@
 ﻿using StarlightRiver.Content.Items.BaseTypes;
+using StarlightRiver.Content.Items.Gravedigger;
 using StarlightRiver.Helpers;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace StarlightRiver.Content.Items.Misc
 	{
 		public override string Texture => AssetDirectory.MiscItem + Name;
 
-		public PandorasDagger() : base("Pandora's Dagger", "Grazes release Discordant Bolts, that inflict stacks of Volatile") { }
+		public PandorasDagger() : base("Pandora's Dagger", "When you {{Graze}} projectiles, you release Discordant Bolts, inflicting stacks of Volatile") { }
 
 		public override void SafeSetDefaults()
 		{
@@ -97,7 +98,7 @@ namespace StarlightRiver.Content.Items.Misc
 				Dust.NewDustDirect(Projectile.position, Projectile.width, Projectile.height, ModContent.DustType<Dusts.GlowFastDecelerate>(), 0f, 0f, 0, new Color(220, 205, 140), 0.35f);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			VolatileGlobalNPC globalNPC = target.GetGlobalNPC<VolatileGlobalNPC>();
 
@@ -118,7 +119,7 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override void PostDraw(Color lightColor)
 		{
-			Texture2D texture = ModContent.Request<Texture2D>(AssetDirectory.Assets + "StarTexture").Value;
+			Texture2D texture = Assets.StarTexture.Value;
 			var color = new Color(220, 205, 140)
 			{
 				A = 0
@@ -147,7 +148,8 @@ namespace StarlightRiver.Content.Items.Misc
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 15, new TriangularTip(2.5f), factor => 4.5f * (factor * 2f), factor => Color.Lerp(new Color(210, 210, 200), new Color(220, 205, 140), factor.X) * 0.8f * factor.X);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 15, new NoTip(), factor => 4.5f * (factor * 2f), factor => Color.Lerp(new Color(210, 210, 200), new Color(220, 205, 140), factor.X) * 0.8f * factor.X);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -158,20 +160,20 @@ namespace StarlightRiver.Content.Items.Misc
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * -0.03f);
 			effect.Parameters["repeats"].SetValue(2f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 
 			trail?.Render(effect);
 		}
 
 		public void DrawAdditive(SpriteBatch sb)
 		{
-			Texture2D texture = ModContent.Request<Texture2D>(AssetDirectory.Keys + "GlowSoft").Value;
+			Texture2D texture = Assets.Keys.GlowSoft.Value;
 			var color = new Color(220, 205, 140);
 			sb.Draw(texture, Projectile.Center - Projectile.velocity - Main.screenPosition, null, color * 0.6f, Projectile.rotation, texture.Size() / 2f, Projectile.scale - 0.35f, SpriteEffects.None, 0);
 			sb.Draw(texture, Projectile.Center - Projectile.velocity - Main.screenPosition, null, color, Projectile.rotation, texture.Size() / 2f, Projectile.scale - 0.45f, SpriteEffects.None, 0);
@@ -198,22 +200,16 @@ namespace StarlightRiver.Content.Items.Misc
 				VolatileStacks = 0;
 		}
 
-		public override void ModifyHitByItem(NPC npc, Player player, Item item, ref int damage, ref float knockback, ref bool crit)
+		public override void ModifyIncomingHit(NPC npc, ref NPC.HitModifiers modifiers)
 		{
 			if (VolatileStacks > 0)
-				damage = (int)(damage * (1f + 0.07f * VolatileStacks));
+				modifiers.FinalDamage *= 1f + 0.07f * VolatileStacks;
 		}
 
-		public override void ModifyHitByProjectile(NPC npc, Projectile projectile, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitPlayer(NPC npc, Player target, ref Player.HurtModifiers modifiers)
 		{
 			if (VolatileStacks > 0)
-				damage = (int)(damage * (1f + 0.07f * VolatileStacks));
-		}
-
-		public override void ModifyHitPlayer(NPC npc, Player target, ref int damage, ref bool crit)
-		{
-			if (VolatileStacks > 0)
-				damage = (int)(damage * (1f + 0.03f * VolatileStacks));
+				modifiers.FinalDamage *= 1f + 0.03f * VolatileStacks;
 		}
 
 		public override void AI(NPC npc)

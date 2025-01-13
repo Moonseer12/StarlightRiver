@@ -2,6 +2,7 @@
 using Terraria.DataStructures;
 using Terraria.Enums;
 using Terraria.ID;
+using Terraria.Localization;
 using Terraria.ObjectData;
 
 namespace StarlightRiver.Core
@@ -13,7 +14,7 @@ namespace StarlightRiver.Core
 			tile.MinPick = minPick;
 			tile.DustType = dustType;
 			tile.HitSound = hitSound;
-			tile.ItemDrop = drop;
+			tile.RegisterItemDrop(drop);
 			Main.tileMergeDirt[tile.Type] = dirtMerge;
 			Main.tileStone[tile.Type] = stone;
 
@@ -21,7 +22,7 @@ namespace StarlightRiver.Core
 			Main.tileLighted[tile.Type] = true;
 			Main.tileBlockLight[tile.Type] = true;
 
-			ModTranslation name = tile.CreateMapEntryName();
+			LocalizedText name = tile.CreateMapEntryName();
 			name.SetDefault(mapName);
 			tile.AddMapEntry(mapColor, name);
 		}
@@ -40,7 +41,7 @@ namespace StarlightRiver.Core
 			TileObjectData.newTile.AnchorBottom = new AnchorData(AnchorType.SolidTile | AnchorType.SolidWithTop | AnchorType.SolidSide, TileObjectData.newTile.Width, 0);
 			TileObjectData.addTile(tile.Type);
 
-			ModTranslation name = tile.CreateMapEntryName();
+			LocalizedText name = tile.CreateMapEntryName();
 			name.SetDefault("Metal Bar"); //all bars are called metal bar in vanilla
 
 			if (mapColor != null)
@@ -50,14 +51,14 @@ namespace StarlightRiver.Core
 				tile.HitSound = hitSound;
 
 			tile.DustType = dustType;
-			tile.ItemDrop = drop;
+			tile.RegisterItemDrop(drop);
 		}
 
 		public static void QuickSetWall(this ModWall wall, int dustType, SoundStyle hitSound, int drop, bool safe, Color mapColor)
 		{
 			wall.DustType = dustType;
 			wall.HitSound = hitSound;
-			wall.ItemDrop = drop;
+			wall.RegisterItemDrop(drop);
 			Main.wallHouse[wall.Type] = safe;
 			wall.AddMapEntry(mapColor);
 		}
@@ -112,7 +113,7 @@ namespace StarlightRiver.Core
 
 			TileObjectData.addTile(tile.Type);
 
-			ModTranslation name = tile.CreateMapEntryName();
+			LocalizedText name = tile.CreateMapEntryName();
 			name.SetDefault(mapName);
 			tile.AddMapEntry(mapColor, name);
 			tile.DustType = dustType;
@@ -154,7 +155,7 @@ namespace StarlightRiver.Core
 
 			TileObjectData.addTile(tile.Type);
 
-			ModTranslation name = tile.CreateMapEntryName();
+			LocalizedText name = tile.CreateMapEntryName();
 			name.SetDefault(mapName);
 			tile.AddMapEntry(mapColor, name);
 			tile.DustType = dustType;

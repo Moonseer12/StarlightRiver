@@ -1,13 +1,14 @@
-﻿using StarlightRiver.Content.Codex.Entries;
-using StarlightRiver.Content.Waters;
+﻿using StarlightRiver.Content.Waters;
 using StarlightRiver.Core.Systems.LightingSystem;
-using StarlightRiver.Helpers;
+using System.Linq;
 using Terraria.Graphics.Effects;
 
 namespace StarlightRiver.Content.Biomes
 {
 	public class VitricDesertBiome : ModBiome
 	{
+		public static bool onScreen;
+
 		public override string BestiaryIcon => AssetDirectory.Biomes + "VitricDesertIcon";
 
 		public override int Music => MusicLoader.GetMusicSlot("StarlightRiver/Sounds/Music/GlassPassive");
@@ -30,12 +31,14 @@ namespace StarlightRiver.Content.Biomes
 			Rectangle detectionBox = StarlightWorld.vitricBiome;
 			detectionBox.Inflate(Main.screenWidth / 32, Main.screenHeight / 32);
 
+			onScreen = StarlightWorld.vitricBiome.Intersects(new Rectangle((int)Main.screenPosition.X / 16, (int)Main.screenPosition.Y / 16, Main.screenWidth / 16, Main.screenHeight / 16));
+
 			return detectionBox.Contains((player.position / 16).ToPoint());
 		}
 
 		public override void OnInBiome(Player player)
 		{
-			if (Main.Configuration.Get<bool>("UseHeatDistortion", false))
+			if (Main.Configuration.Get<bool>("UseHeatDistortion", false) && !Main.npc.Any(n => n.active && n.boss))
 			{
 				if (!Filters.Scene["GradientDistortion"].IsActive())
 				{
@@ -59,11 +62,6 @@ namespace StarlightRiver.Content.Biomes
 			if (Filters.Scene["GradientDistortion"].IsActive())
 				Filters.Scene.Deactivate("GradientDistortion");
 		}
-
-		public override void OnEnter(Player player)
-		{
-			Helper.UnlockCodexEntry<VitricEntry>(player);
-		}
 	}
 
 	public class VitricDesertBackground : ModSceneEffect
@@ -74,7 +72,7 @@ namespace StarlightRiver.Content.Biomes
 
 		public override bool IsSceneEffectActive(Player player)
 		{
-			return StarlightWorld.vitricBiome.Intersects(new Rectangle((int)Main.screenPosition.X / 16, (int)Main.screenPosition.Y / 16, Main.screenWidth / 16, Main.screenHeight / 16));
+			return VitricDesertBiome.onScreen;
 		}
 	}
 

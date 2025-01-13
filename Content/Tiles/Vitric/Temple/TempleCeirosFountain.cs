@@ -1,6 +1,7 @@
 ﻿using Terraria.DataStructures;
 using Terraria.Enums;
 using Terraria.ID;
+using Terraria.Localization;
 using Terraria.ObjectData;
 
 namespace StarlightRiver.Content.Tiles.Vitric.Temple
@@ -27,12 +28,12 @@ namespace StarlightRiver.Content.Tiles.Vitric.Temple
 
 			TileObjectData.addTile(Type);
 
-			ModTranslation name = CreateMapEntryName();
+			LocalizedText name = CreateMapEntryName();
 			name.SetDefault("Fountain");
 			AddMapEntry(new Color(140, 97, 86), name);
 			DustType = 0;
 			HitSound = SoundID.Dig;
-			ItemDrop = ModContent.ItemType<TempleWallCandleItem>();
+			RegisterItemDrop(ModContent.ItemType<TempleWallCandleItem>());
 			AnimationFrameHeight = 36;
 		}
 

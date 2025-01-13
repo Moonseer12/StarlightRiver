@@ -1,6 +1,9 @@
 ﻿using ReLogic.Content;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection.Metadata;
 using Terraria.Audio;
+using Terraria.DataStructures;
 using Terraria.GameContent.Creative;
 using Terraria.ID;
 
@@ -13,7 +16,7 @@ namespace StarlightRiver.Content.Items.BuriedArtifacts
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Archaeologist's Whip");
-			Tooltip.SetDefault("Strike enemies to make them drop treasure \nCollect treasure to empower minions");
+			Tooltip.SetDefault("Strike enemies to make them drop treasure \nCollect treasure to empower your minions");
 			CreativeItemSacrificesCatalog.Instance.SacrificeCountNeededByItemId[Type] = 1;
 		}
 
@@ -22,6 +25,11 @@ namespace StarlightRiver.Content.Items.BuriedArtifacts
 			Item.DefaultToWhip(ModContent.ProjectileType<ArchaeologistsWhip_Whip>(), 15, 1.2f, 5f, 25);
 			Item.value = Item.sellPrice(0, 1, 0, 0);
 			Item.rare = ItemRarityID.Green;
+		}
+
+		public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
+		{
+			return !Main.projectile.Any(n => n.active && n.type == type && n.owner == player.whoAmI);
 		}
 	}
 
@@ -122,14 +130,23 @@ namespace StarlightRiver.Content.Items.BuriedArtifacts
 			return minLight;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
-			int[] treasure = new int[] {
-			ModContent.ItemType<AWhip_BlueGem>(),
-			ModContent.ItemType<AWhip_GreenGem>(),
-			ModContent.ItemType<AWhip_RedGem>(),
-			ModContent.ItemType<AWhip_Coin>(),
-			ModContent.ItemType<AWhip_Necklace>(),
+
+			// Items can only be spawned on server or singleplayer
+			if (Main.netMode == NetmodeID.MultiplayerClient)
+			{
+				Main.player[Projectile.owner].TryGetModPlayer(out StarlightPlayer sp);
+				sp.SetHitPacketStatus(true);
+				return;
+			}
+
+			int[] treasure = {
+				ModContent.ItemType<AWhip_BlueGem>(),
+				ModContent.ItemType<AWhip_GreenGem>(),
+				ModContent.ItemType<AWhip_RedGem>(),
+				ModContent.ItemType<AWhip_Coin>(),
+				ModContent.ItemType<AWhip_Necklace>()
 			};
 
 			if (Main.rand.NextBool(9))
@@ -139,8 +156,6 @@ namespace StarlightRiver.Content.Items.BuriedArtifacts
 				else
 					Item.NewItem(target.GetSource_Loot(), target.Hitbox, treasure[Main.rand.Next(treasure.Length)]);
 			}
-
-			base.OnHitNPC(target, damage, knockback, crit);
 		}
 	}
 
@@ -174,7 +189,7 @@ namespace StarlightRiver.Content.Items.BuriedArtifacts
 
 		public override bool PreDrawInWorld(SpriteBatch spriteBatch, Color lightColor, Color alphaColor, ref float rotation, ref float scale, int whoAmI)
 		{
-			Texture2D glowTex = ModContent.Request<Texture2D>(AssetDirectory.Keys + "GlowAlpha").Value;
+			Texture2D glowTex = Assets.Keys.GlowAlpha.Value;
 			Color drawColor = Color.Gold;
 			drawColor.A = 0;
 			spriteBatch.Draw(glowTex, Item.Center - Main.screenPosition, null, drawColor, 0, glowTex.Size() / 2, 0.55f, SpriteEffects.None, 0f);
@@ -210,12 +225,17 @@ namespace StarlightRiver.Content.Items.BuriedArtifacts
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Treasure buff");
-			Description.SetDefault("Your minions do more damage");
+			Description.SetDefault("Your minions do more contact damage");
 		}
 	}
 
 	public class ArchaeologistsWhipGProj : GlobalProjectile
 	{
+		public override bool AppliesToEntity(Projectile entity, bool lateInstantiation)
+		{
+			return entity.minion;
+		}
+
 		public override void AI(Projectile projectile)
 		{
 			Player player = Main.player[projectile.owner];
@@ -224,12 +244,12 @@ namespace StarlightRiver.Content.Items.BuriedArtifacts
 				Dust.NewDustPerfect(projectile.Center + Main.rand.NextVector2Circular(12, 12), ModContent.DustType<Dusts.ArtifactSparkles.GoldArtifactSparkle>(), Vector2.Zero);
 		}
 
-		public override void ModifyHitNPC(Projectile projectile, NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(Projectile projectile, NPC target, ref NPC.HitModifiers modifiers)
 		{
 			Player player = Main.player[projectile.owner];
 
 			if (projectile.minion && player.HasBuff(ModContent.BuffType<ArchaeologistsBuff>()))
-				damage = (int)(damage * 1.2f);
+				modifiers.FinalDamage *= 1.2f;
 		}
 	}
 }

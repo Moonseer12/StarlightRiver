@@ -11,7 +11,7 @@ namespace StarlightRiver.Content.Items.Breacher
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Scrap Pod");
-			Tooltip.SetDefault("Shatters into scrapnel after reaching the mouse cursor\nIs only able to shatter after a short period of time");
+			Tooltip.SetDefault("Shatters into scrapnel after reaching your cursor");
 		}
 
 		public override void SetDefaults()
@@ -21,7 +21,7 @@ namespace StarlightRiver.Content.Items.Breacher
 			Item.value = Item.sellPrice(copper: 10);
 			Item.rare = ItemRarityID.Orange;
 
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 			Item.damage = 8;
 			Item.knockBack = 1.5f;
 
@@ -31,6 +31,14 @@ namespace StarlightRiver.Content.Items.Breacher
 			Item.DamageType = DamageClass.Ranged;
 			Item.shoot = ModContent.ProjectileType<ScrappodProjectile>();
 			Item.shootSpeed = 3.5f;
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe(100);
+			recipe.AddIngredient(ModContent.ItemType<Content.Items.SpaceEvent.Astroscrap>(), 1);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -102,7 +110,7 @@ namespace StarlightRiver.Content.Items.Breacher
 		{
 			SpriteEffects spriteEffects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
 
-			Texture2D texture = ModContent.Request<Texture2D>(Texture).Value;
+			Texture2D texture = Assets.Items.Breacher.ScrappodProjectile.Value;
 
 			int frameHeight = texture.Height / Main.projFrames[Projectile.type];
 			int startY = frameHeight * Projectile.frame;

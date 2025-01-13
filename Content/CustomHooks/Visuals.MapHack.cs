@@ -11,7 +11,7 @@ namespace StarlightRiver.Content.CustomHooks
 			if (Main.dedServ)
 				return;
 
-			IL.Terraria.Main.DrawMap += MapShader;
+			IL_Main.DrawMap += MapShader;
 		}
 
 		private void MapShader(ILContext il)
@@ -40,7 +40,7 @@ namespace StarlightRiver.Content.CustomHooks
 			if (FirstContactSystem.FirstContactFade > 0)
 			{
 				Terraria.Graphics.Effects.Filters.Scene["SpaceMap"].GetShader().Shader.Parameters["uTime"].SetValue(Main.GameUpdateCount / 30f);
-				Terraria.Graphics.Effects.Filters.Scene["SpaceMap"].GetShader().Shader.Parameters["sampleTexture2"].SetValue(Terraria.ModLoader.ModContent.Request<Texture2D>("StarlightRiver/Assets/Misc/SkyMap").Value);
+				Terraria.Graphics.Effects.Filters.Scene["SpaceMap"].GetShader().Shader.Parameters["sampleTexture2"].SetValue(Assets.Misc.SkyMap.Value);
 				Terraria.Graphics.Effects.Filters.Scene["SpaceMap"].GetShader().Shader.Parameters["uOpacity"].SetValue(FirstContactSystem.FirstContactFade);
 
 				Main.spriteBatch.End();

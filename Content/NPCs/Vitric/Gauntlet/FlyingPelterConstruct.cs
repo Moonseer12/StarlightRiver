@@ -3,6 +3,7 @@ using StarlightRiver.Content.Items.Misc;
 using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Terraria.Audio;
 using Terraria.DataStructures;
 using Terraria.GameContent.Bestiary;
@@ -16,8 +17,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 		private const int BOWFRAMES = 4;
 		private const int XFRAMES = 1;
 
-		private int bowFrame = 0;
-		private int bowFrameCounter = 0;
+		public ref float BowFrame => ref NPC.ai[0];
+		public ref float BowFrameCounter => ref NPC.ai[1];
 
 		private int bodyFrame;
 		private int frameCounter;
@@ -27,7 +28,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		float headRotation = 0f;
 
-		private int XFrame = 0;
+		private readonly int XFrame = 0;
 
 		public Vector2 posToBe = Vector2.Zero;
 
@@ -83,11 +84,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			NPC.lifeMax = 100;
 			NPC.value = 0f;
 			NPC.knockBackResist = 0.6f;
-			NPC.HitSound = SoundID.Item27 with
-			{
-				Pitch = -0.3f
-			};
-			NPC.DeathSound = SoundID.Shatter;
+			NPC.HitSound = new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Impacts/IceHit") with { PitchVariance = 0.3f };
+			NPC.DeathSound = new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Impacts/EnergyBreak") with { PitchVariance = 0.3f };
 			NPC.noGravity = true;
 			NPC.behindTiles = true;
 		}
@@ -147,7 +145,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 			float rotDifference = Helper.RotationDifference(direction.ToRotation(), bowArmRotation);
 
-			if (!empowered || bowFrameCounter < 75)
+			if (!empowered || BowFrameCounter < 75)
 				bowArmRotation = MathHelper.Lerp(bowArmRotation, bowArmRotation + rotDifference, 0.1f);
 
 			bowRotation = BackArmPos.DirectionTo(BowPos).ToRotation();
@@ -189,8 +187,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			else
 			{
 				attacking = false;
-				bowFrame = 0;
-				bowFrameCounter = 0;
+				BowFrame = 0;
+				BowFrameCounter = 0;
 			}
 
 			NPC.velocity += knockbackVel;
@@ -219,9 +217,9 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			if (empowered)
 			{
 				Main.spriteBatch.End();
-				Main.spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				Main.spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
-				if (bowFrame == 0)
+				if (BowFrame == 0)
 					DrawPredictor(screenPos);
 
 				float sin = 0.5f + (float)Math.Sin(glowCounter) * 0.5f;
@@ -236,9 +234,9 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				}
 
 				Main.spriteBatch.End();
-				Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
-				if (bowFrame == 0)
+				if (BowFrame == 0)
 					DrawLaserArrow(screenPos);
 			}
 
@@ -279,8 +277,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			var frontFrame = new Rectangle(0, 0, armTex.Width, armFrameSize);
 			var backFrame = new Rectangle(0, armFrameSize, armTex.Width, armFrameSize);
 
-			int bowFrameHeight = bowTex.Height / BOWFRAMES;
-			var bowFrameBox = new Rectangle(0, bowFrame * bowFrameHeight, bowTex.Width, bowFrameHeight);
+			int BowFrameHeight = bowTex.Height / BOWFRAMES;
+			var BowFrameBox = new Rectangle(0, (int)BowFrame * BowFrameHeight, bowTex.Width, BowFrameHeight);
 
 			int mainFrameHeight = mainTex.Height / Main.npcFrameCount[NPC.type];
 			int mainFrameWidth = mainTex.Width / XFRAMES;
@@ -295,7 +293,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				effects = SpriteEffects.FlipHorizontally;
 				bowEffects = SpriteEffects.FlipVertically;
 
-				bowOrigin = new Vector2(bowOrigin.X, bowFrameHeight - bowOrigin.Y);
+				bowOrigin = new Vector2(bowOrigin.X, BowFrameHeight - bowOrigin.Y);
 				backArmOrigin = new Vector2(backArmOrigin.X, armFrameSize - backArmOrigin.Y);
 				bowArmOrigin = new Vector2(bowArmOrigin.X, armFrameSize - bowArmOrigin.Y);
 				//bowOrigin = new Vector2(bowTex.Width - bowOrigin.X, bowOrigin.Y);
@@ -313,7 +311,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			if (!glow)
 				Main.spriteBatch.Draw(armGlowTex, offset + BowArmPos + slopeOffset - screenPos, backFrame, Color.White, bowArmRotation + NPC.rotation, bowArmOrigin, NPC.scale, bowEffects, 0f);
 
-			Main.spriteBatch.Draw(bowTex, offset + BowPos + slopeOffset - screenPos, bowFrameBox, drawColor, bowRotation + NPC.rotation, bowOrigin, NPC.scale, bowEffects, 0f);
+			Main.spriteBatch.Draw(bowTex, offset + BowPos + slopeOffset - screenPos, BowFrameBox, drawColor, bowRotation + NPC.rotation, bowOrigin, NPC.scale, bowEffects, 0f);
 			Main.spriteBatch.Draw(armTex, offset + BackArmPos + slopeOffset - screenPos, frontFrame, drawColor, BackArmRotation + NPC.rotation, backArmOrigin, NPC.scale, bowEffects, 0f);
 
 			if (!glow)
@@ -322,14 +320,14 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		private void DrawPredictor(Vector2 screenPos)
 		{
-			Texture2D predictorTex = Request<Texture2D>(AssetDirectory.Keys + "Shine").Value;
+			Texture2D predictorTex = Assets.Keys.Shine.Value;
 			float rot = bowArmRotation + 1.57f;
 
-			float charge = EaseFunction.EaseQuadInOut.Ease(MathHelper.Clamp(bowFrameCounter / 100f, 0, 1));
+			float charge = EaseFunction.EaseQuadInOut.Ease(MathHelper.Clamp(BowFrameCounter / 100f, 0, 1));
 			float opacity = (float)Math.Sqrt(charge);
 
-			if (bowFrameCounter > 100)
-				opacity *= 1 - (bowFrameCounter - 100) / 10f;
+			if (BowFrameCounter > 100)
+				opacity *= 1 - (BowFrameCounter - 100) / 10f;
 
 			var scale = new Vector2((0.1f + (1 - charge)) * 0.3f, predictorLength);
 			var origin = new Vector2(predictorTex.Width / 2, predictorTex.Height);
@@ -340,13 +338,13 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		private void DrawLaserArrow(Vector2 screenPos)
 		{
-			Texture2D arrowTex = Request<Texture2D>(AssetDirectory.GauntletNpc + "PelterConstructArrowLarge").Value;
+			Texture2D arrowTex = Assets.NPCs.Vitric.Gauntlet.PelterConstructArrowLarge.Value;
 
 			float rot = bowArmRotation;
 			Vector2 pos = BowPos + bowArmRotation.ToRotationVector2() * 25 - screenPos;
 			Vector2 origin = arrowTex.Size() / 2;
 
-			float charge = 1 - MathHelper.Clamp(bowFrameCounter / 100f, 0, 1);
+			float charge = 1 - MathHelper.Clamp(BowFrameCounter / 100f, 0, 1);
 			float distance = charge * 8;
 
 			for (int i = 0; i < 8; i++)
@@ -358,21 +356,19 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			}
 		}
 
-		public override void HitEffect(int hitDirection, double damage)
+		public override void HitEffect(NPC.HitInfo hit)
 		{
 			if (pairedGrunt != default)
 				(pairedGrunt.ModNPC as FlyingGruntConstruct).attacking = true;
-		}
 
-		public override void OnKill()
-		{
-			if (Main.netMode != NetmodeID.Server)
+			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
 			{
 				for (int i = 0; i < 9; i++)
 					Dust.NewDustPerfect(NPC.position + new Vector2(Main.rand.Next(NPC.width), Main.rand.Next(NPC.height)), DustType<Cinder>(), Main.rand.NextVector2Circular(3, 3), 0, new Color(255, 150, 50), Main.rand.NextFloat(0.75f, 1.25f)).noGravity = false;
 
 				for (int k = 1; k <= 12; k++)
 					Gore.NewGoreDirect(NPC.GetSource_Death(), NPC.position + new Vector2(Main.rand.Next(NPC.width), Main.rand.Next(NPC.height)), Main.rand.NextVector2Circular(3, 3), Mod.Find<ModGore>("ConstructGore" + k).Type);
+
 			}
 		}
 
@@ -397,13 +393,13 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				timeToCharge = 5;
 			}
 
-			bowFrameCounter++;
-			if (bowFrame == 0)
+			BowFrameCounter++;
+			if (BowFrame == 0)
 			{
-				if (bowFrameCounter < 75)
+				if (BowFrameCounter < 75)
 					predictorLength = 0.15f;
 
-				if (bowFrameCounter > timeToShoot)
+				if (BowFrameCounter > timeToShoot)
 				{
 					arrowsShot++;
 					if (arrowsShot > arrowsToShoot)
@@ -412,40 +408,48 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 						attacking = false;
 						posToBe = Target.Center + new Vector2(Main.rand.Next(-500, -100) * Math.Sign(Target.Center.X - NPC.Center.X), Main.rand.Next(-200, -70));
 						oldPos = NPC.Center;
+						NPC.netUpdate = true; // sync from rand. this is kinda frequent at times and seems to hit netspam so maybe this construct needs to be more deterministic
 					}
 
 					SoundEngine.PlaySound(SoundID.Item5, NPC.Center);
 
 					if (!empowered)
 					{
-						Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), BowPos, BowPos.DirectionTo(Target.Center).RotatedBy((Target.Center.X - NPC.Center.X) * -0.0003f) * 10, ProjectileType<PelterConstructArrow>(), (int)(NPC.damage * (Main.expertMode || Main.masterMode ? 0.3f : 1)), NPC.knockBackResist);
+						if (Main.netMode != NetmodeID.MultiplayerClient)
+							Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), BowPos, BowPos.DirectionTo(Target.Center).RotatedBy((Target.Center.X - NPC.Center.X) * -0.0003f) * 10, ProjectileType<PelterConstructArrow>(), (int)(NPC.damage * (Main.expertMode || Main.masterMode ? 0.3f : 1)), NPC.knockBackResist);
 					}
 					else
 					{
-						var proj = Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), BowPos + bowArmRotation.ToRotationVector2() * 5, bowArmRotation.ToRotationVector2() * 50, ProjectileType<PelterConstructArrowLarge>(), (int)(NPC.damage * (Main.expertMode || Main.masterMode ? 0.3f : 1)), NPC.knockBackResist);
-						proj.rotation = bowArmRotation + 1.57f;
-						proj.ai[0] = proj.Distance(Target.Center) / 5;
+						if (Main.netMode != NetmodeID.MultiplayerClient)
+						{
+							Vector2 projPos = BowPos + bowArmRotation.ToRotationVector2() * 5;
+							var proj = Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), projPos, bowArmRotation.ToRotationVector2() * 50, ProjectileType<PelterConstructArrowLarge>(), (int)(NPC.damage * (Main.expertMode || Main.masterMode ? 0.3f : 1)), NPC.knockBackResist, ai0: projPos.Distance(Target.Center) / 5);
+							proj.rotation = bowArmRotation + 1.57f; //TODO: sync this var
+						}
 
 						knockbackVel = bowArmRotation.ToRotationVector2() * -5;
 
-						for (int i = 0; i < 15; i++)
+						if (Main.netMode != NetmodeID.Server)
 						{
-							Vector2 dustPos = BowPos + Main.rand.NextVector2Circular(10, 10);
-							Dust.NewDustPerfect(dustPos, DustType<Dusts.Glow>(), bowArmRotation.ToRotationVector2().RotatedByRandom(0.7f) * Main.rand.NextFloat(0.1f, 1f) * 4f, 0, new Color(255, 150, 50), Main.rand.NextFloat(0.75f, 1.25f)).noGravity = true;
+							for (int i = 0; i < 15; i++)
+							{
+								Vector2 dustPos = BowPos + Main.rand.NextVector2Circular(10, 10);
+								Dust.NewDustPerfect(dustPos, DustType<Dusts.Glow>(), bowArmRotation.ToRotationVector2().RotatedByRandom(0.7f) * Main.rand.NextFloat(0.1f, 1f) * 4f, 0, new Color(255, 150, 50), Main.rand.NextFloat(0.75f, 1.25f)).noGravity = true;
+							}
 						}
 					}
 
-					bowFrameCounter = 0;
-					bowFrame++;
+					BowFrameCounter = 0;
+					BowFrame++;
 				}
 			}
-			else if (bowFrameCounter > timeToCharge)
+			else if (BowFrameCounter > timeToCharge)
 			{
-				bowFrameCounter = 0;
-				bowFrame++;
+				BowFrameCounter = 0;
+				BowFrame++;
 			}
 
-			bowFrame %= BOWFRAMES;
+			BowFrame %= BOWFRAMES;
 			NPC.spriteDirection = Math.Sign(NPC.Center.DirectionTo(Target.Center).X);
 
 			NPC.velocity.X = 0;
@@ -454,7 +458,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 		public override void DrawHealingGlow(SpriteBatch spriteBatch)
 		{
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			float sin = 0.5f + (float)Math.Sin(Main.timeForVisualEffects * 0.04f) * 0.5f;
 			float distance = sin * 3 + 2;
@@ -462,13 +466,25 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			for (int i = 0; i < 8; i++)
 			{
 				float rad = i * 6.28f / 8;
-				Vector2 offset = Vector2.UnitX.RotatedBy(rad) * distance;
+				Vector2 offset = Vector2.UnitX.RotatedBy(rad) * distance + NPC.netOffset;
 				Color color = Color.OrangeRed * (1.75f - sin) * 0.7f;
 				DrawComponents(false, Main.screenPosition, color, offset);
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
+		}
+
+		public override void SafeSendExtraAI(BinaryWriter writer)
+		{
+			writer.WriteVector2(posToBe);
+			writer.WriteVector2(oldPos);
+		}
+
+		public override void SafeReceiveExtraAI(BinaryReader reader)
+		{
+			posToBe = reader.ReadVector2();
+			oldPos = reader.ReadVector2();
 		}
 	}
 
@@ -508,20 +524,20 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			Effect effect = Terraria.Graphics.Effects.Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * -0.04f);
 			effect.Parameters["repeats"].SetValue((int)Projectile.ai[0] / 5);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 
 			trail?.Render(effect);
 
-			effect.Parameters["sampleTexture"].SetValue(Request<Texture2D>("StarlightRiver/Assets/FireTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.FireTrail.Value);
 
 			trail?.Render(effect);
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			Texture2D flash = Request<Texture2D>(Texture + "_Flare").Value;
 			Color flashFade = Color.OrangeRed * fade * fade;
@@ -554,7 +570,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				if (fade <= 0)
 					Projectile.active = false;
 			}
-			else
+			else if (!Main.dedServ)
 			{
 				Dust.NewDustPerfect(Projectile.Center + Main.rand.NextVector2Circular(6, 6), 6, null, 0, default, 1.1f);
 			}
@@ -567,15 +583,16 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				Projectile.extraUpdates = 0;
 				Projectile.position += oldVelocity;
 
-				if (!Main.dedServ)
-					ManageCaches();
-
 				Projectile.velocity = Vector2.Zero;
 
-				SoundEngine.PlaySound(new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Magic/FireHit"), Projectile.Center);
-				Helper.PlayPitched("Impacts/AirstrikeImpact", 0.4f, Main.rand.NextFloat(-0.1f, 0.1f));
+				if (!Main.dedServ)
+				{
+					ManageCaches();
+					SoundEngine.PlaySound(new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Magic/FireHit"), Projectile.Center);
+					Helper.PlayPitched("Impacts/AirstrikeImpact", 0.3f, Main.rand.NextFloat(-0.1f, 0.1f));
 
-				SpawnParticles();
+					SpawnParticles();
+				}
 			}
 
 			return false;
@@ -602,7 +619,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, (int)Projectile.ai[0], new TriangularTip(4), factor => 14 * fade, factor => new Color(255, 100, 65) * 0.5f * (float)Math.Sqrt(factor.X));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, (int)Projectile.ai[0], new NoTip(), factor => 14 * fade, factor => new Color(255, 100, 65) * 0.5f * (float)Math.Sqrt(factor.X));
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -610,7 +628,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		public void DrawAdditive(SpriteBatch sb)
 		{
-			Texture2D tex = Request<Texture2D>(AssetDirectory.Assets + "Keys/GlowSoft").Value;
+			Texture2D tex = Assets.Keys.GlowSoft.Value;
 
 			Color color = Color.OrangeRed;
 			for (int i = 0; i < 6; i++)

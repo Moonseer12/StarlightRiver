@@ -2,10 +2,13 @@
 using StarlightRiver.Content.GUI;
 using StarlightRiver.Content.Items.Breacher;
 using StarlightRiver.Content.Packets;
+using StarlightRiver.Content.PersistentData;
 using StarlightRiver.Content.Tiles.Vitric;
 using StarlightRiver.Core.Loaders.UILoading;
+using StarlightRiver.Core.Systems.BossRushSystem;
 using StarlightRiver.Core.Systems.CameraSystem;
 using StarlightRiver.Core.Systems.DummyTileSystem;
+using StarlightRiver.Core.Systems.PersistentDataSystem;
 using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
@@ -25,7 +28,7 @@ namespace StarlightRiver.Core
 
 		public int pickupTimer = 0; //TODO: Move this into its own thing eventually
 		public int maxPickupTimer = 0;
-		public NPC pickupTarget;
+		public Dummy pickupTarget;
 		public Vector2 oldPickupPos;
 
 		public bool inTutorial;
@@ -35,8 +38,8 @@ namespace StarlightRiver.Core
 
 		public static List<PlayerTicker> spawners = new();
 
-		public bool shouldSendHitPacket = false;
-		public OnHitPacket hitPacket = null;
+		protected bool shouldSendHitPacket = false;
+		public OnPlayerHitNPCPacket hitPacket = null;
 
 		public int Timer { get; private set; }
 
@@ -96,7 +99,7 @@ namespace StarlightRiver.Core
 			Timer++;
 		}
 
-		public override void Hurt(bool pvp, bool quiet, double damage, int hitDirection, bool crit, int cooldownCounter)
+		public override void OnHurt(Player.HurtInfo info)
 		{
 			justHit = true;
 			lastHit = Timer;
@@ -115,49 +118,70 @@ namespace StarlightRiver.Core
 		/// </summary>
 		/// <param name="proj"></param>
 		/// <param name="target"></param>
-		/// <param name="damage"></param>
-		/// <param name="knockback"></param>
-		/// <param name="crit"></param>
-		public void AddHitPacket(Projectile proj, NPC target, int damage, float knockback, bool crit)
+		protected void AddHitPacket(Projectile proj, NPC target)
 		{
-			if (Main.myPlayer == Player.whoAmI && Main.netMode == NetmodeID.MultiplayerClient)
-				hitPacket = new OnHitPacket(Player, proj, target, damage, knockback, crit);
+			hitPacket = new OnPlayerHitNPCPacket(Player, proj, target, false);
+		}
+		/// <summary>
+		/// sets a hit packet to be run at the end of the hit processing
+		/// </summary>
+		/// <param name="shouldRunProjMethods">determines whether the specific modprojectile onhit methods should be run. set to false if this is from the starlightplayer hook, true if you're setting this inside a projectile</param>
+		public void SetHitPacketStatus(bool shouldRunProjMethods)
+		{
+			if (Main.netMode == NetmodeID.MultiplayerClient && Player.whoAmI == Main.myPlayer)
+			{
+				shouldSendHitPacket = true;
+
+				if (shouldRunProjMethods)
+					hitPacket.SetRunProjMethods();
+			}
 		}
 
 		/// <summary>
 		/// This is expected to run AFTER the on hit hooks so that if and only if any event during the modify and/or hit hooks wants the data to be synced we will do so
+		/// also adds the hit
 		/// </summary>
-		public void SendHitPacket()
+		public void SendHitPacket(NPC.HitInfo hitInfo, int damageDone)
 		{
 			if (shouldSendHitPacket && hitPacket != null && Main.myPlayer == Player.whoAmI && Main.netMode == NetmodeID.MultiplayerClient)
 			{
+				hitPacket.addHitInfo(hitInfo, damageDone);
 				hitPacket.Send(-1, Main.myPlayer, false);
 				shouldSendHitPacket = false;
 				hitPacket = null;
 			}
 		}
 
-		public override void OnEnterWorld(Player Player)
+		public override void OnEnterWorld()
 		{
 			ZoomHandler.SetZoomAnimation(Main.GameZoomTarget, 1);
 
 			rotation = 0;
 
 			BossBarOverlay.tracked = null;
-			Collection.ShouldReset = true;
+			AbilityInventory.shouldReset = true;
 			inTutorial = false;
 
-			DummyTile.dummies.Clear();
+			DummyTile.dummiesByPosition.Clear();
 
-			if (Main.masterMode)
+			TutorialDataStore store = PersistentDataStoreSystem.GetDataStore<TutorialDataStore>();
+
+			if (Main.masterMode && !BossRushSystem.isBossRush && !store.ignoreMasterWarning)
 			{
-				UILoader.GetUIState<MessageBox>().Display("WARNING", "Starlight River has unique behavior for it's bosses in master mode. This behavior is intended to be immensely difficult over anything else, and assumes a high amount of knowldge about " +
-					"both the mod and base game. Starlight River master mode is not intended for a first playthrough. Starlight River master mode is not intended to be fair. Starlight River master mode is not intended to be fun for everyone. " +
+				UILoader.GetUIState<MessageBox>().Display("Warning - Master Mode", "Starlight River has unique behavior for its bosses in Master Mode. This behavior is intended to be immensely difficult over anything else, and assumes a high amount of knowldge about " +
+					"both the mod and base game. Starlight River Master Mode is not intended for a first playthrough. Starlight River Master Mode is not intended to be fair. Starlight River Master Mode is not intended to be fun for everyone. " +
 					"Please remember that the health, both physical and mental, of yourself and those around you is far more important than this game or anything inside of it.");
+
+				UILoader.GetUIState<MessageBox>().AppendButton(Assets.GUI.BackButton, () =>
+				{
+					store.ignoreMasterWarning = true;
+					store.ForceSave();
+					UILoader.GetUIState<MessageBox>().Visible = false;
+				}, "Dont show again");
 			}
 		}
 
-		public override void OnRespawn(Player Player)
+		public override void OnRespawn()
 		{
 			if (Player == Main.LocalPlayer)
 				CameraSystem.Reset();
@@ -166,7 +190,7 @@ namespace StarlightRiver.Core
 			inTutorial = false;
 		}
 
-		public override void PlayerConnect(Player Player)
+		public override void PlayerConnect()
 		{
 			var packet = new AbilityProgress(Main.myPlayer, Main.LocalPlayer.GetHandler());
 			packet.Send(runLocally: false);
@@ -193,7 +217,7 @@ namespace StarlightRiver.Core
 					if (modPlayer.Charges >= 1 && target != default)
 					{
 						Helper.PlayPitched("Effects/Chirp" + (Main.rand.Next(2) + 1).ToString(), 0.5f, 0);
-						drone.ScanTimer = SpotterDrone.ScanTime;
+						drone.ScanTimer = SpotterDrone.SCAN_TIME;
 						drone.Charges = Player.GetModPlayer<BreacherPlayer>().Charges;
 						Player.GetModPlayer<BreacherPlayer>().ticks = 0;
 					}

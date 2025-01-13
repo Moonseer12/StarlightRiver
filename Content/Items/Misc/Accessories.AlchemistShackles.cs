@@ -7,27 +7,41 @@ namespace StarlightRiver.Content.Items.Misc
 	{
 		public override string Texture => AssetDirectory.MiscItem + Name;
 
-		public AlchemistShackles() : base(ModContent.Request<Texture2D>(AssetDirectory.MiscItem + "CasualMirror").Value) { }
-
 		public override void Load()
 		{
-			On.Terraria.Player.AddBuff += Player_AddBuff;
+			On_Player.AddBuff += Player_AddBuff;
 			StarlightItem.GetHealLifeEvent += AlchemistLifeModify;
 			StarlightItem.GetHealManaEvent += AlchemistManaModify;
 		}
 
 		public override void Unload()
 		{
-			On.Terraria.Player.AddBuff -= Player_AddBuff;
+			On_Player.AddBuff -= Player_AddBuff;
 		}
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Alchemist's Shackles");
-			Tooltip.SetDefault("Mana and health potions are more effective when your health and mana are lower \nCursed : Potion sickness effects last 15 seconds longer");
+			Tooltip.SetDefault("Resource potions are more effective when their respective resource is lower \nPotion sickness effects last 15 seconds longer");
 		}
 
-		public static void Player_AddBuff(On.Terraria.Player.orig_AddBuff orig, Player self, int type, int time1, bool quiet = true, bool foodHack = false)
+		public override void SafeSetDefaults()
+		{
+			Item.value = Item.sellPrice(silver: 50);
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.Shackle, 2);
+			recipe.AddIngredient(ItemID.HealingPotion, 2);
+			recipe.AddIngredient(ItemID.ManaPotion, 2);
+			recipe.AddIngredient(ItemID.Bone, 10);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
+		}
+
+		public static void Player_AddBuff(On_Player.orig_AddBuff orig, Player self, int type, int time1, bool quiet = true, bool foodHack = false)
 		{
 			SmartAccessory instance = GetEquippedInstance(self, ModContent.ItemType<AlchemistShackles>());
 

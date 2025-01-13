@@ -14,21 +14,34 @@ namespace StarlightRiver.Core.Systems.ScreenTargetSystem
 
 		new public void Load() //We want to use IOrderedLoadable's load here to preserve our load order
 		{
-			On.Terraria.Main.CheckMonoliths += RenderScreens;
-			Main.OnResolutionChanged += ResizeScreens;
+			if (!Main.dedServ)
+			{
+				On_Main.CheckMonoliths += RenderScreens;
+				Main.OnResolutionChanged += ResizeScreens;
+			}
 		}
 
 		new public void Unload()
 		{
-			On.Terraria.Main.CheckMonoliths -= RenderScreens;
-			Main.OnResolutionChanged -= ResizeScreens;
-
-			Main.QueueMainThreadAction(() =>
+			if (!Main.dedServ)
 			{
-				targets.ForEach(n => n.RenderTarget.Dispose());
-				targets.Clear();
-				targets = null;
-			});
+				On_Main.CheckMonoliths -= RenderScreens;
+				Main.OnResolutionChanged -= ResizeScreens;
+
+				Main.QueueMainThreadAction(() =>
+				{
+					if (targets != null)
+					{
+						targets.ForEach(n => n.RenderTarget?.Dispose());
+						targets.Clear();
+						targets = null;
+					}
+					else
+					{
+						Mod.Logger.Warn("Screen targets was null, all ScreenTargets may not have been released! (leaking VRAM!)");
+					}
+				});
+			}
 		}
 
 		/// <summary>
@@ -83,7 +96,7 @@ namespace StarlightRiver.Core.Systems.ScreenTargetSystem
 			targetSem.Release();
 		}
 
-		private void RenderScreens(On.Terraria.Main.orig_CheckMonoliths orig)
+		private void RenderScreens(On_Main.orig_CheckMonoliths orig)
 		{
 			orig();
 
@@ -99,7 +112,7 @@ namespace StarlightRiver.Core.Systems.ScreenTargetSystem
 				if (target.drawFunct is null) //allows for RTs which dont draw in the default loop, like the lighting tile buffers
 					continue;
 
-				Main.spriteBatch.Begin();
+				Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default);
 				Main.graphics.GraphicsDevice.SetRenderTarget(target.RenderTarget);
 				Main.graphics.GraphicsDevice.Clear(Color.Transparent);
 

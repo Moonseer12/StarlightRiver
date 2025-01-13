@@ -17,7 +17,7 @@ namespace StarlightRiver.Content.Items.Breacher
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Supply Beacon");
-			Tooltip.SetDefault("Taking over 50 damage summons a supply drop \nStand near the supply drop to buff either damage, regeneration, or defense \n10 second cooldown");
+			Tooltip.SetDefault("Taking over 50 damage summons a supply drop \nStand near the supply drop to gain {{BUFF:SupplyBeaconDefense, {{BUFF:SupplyBeaconHeal}}, or {{BUFF:SupplyBeaconDamage}} \n10 second cooldown");
 		}
 
 		public override void SetDefaults()
@@ -60,11 +60,12 @@ namespace StarlightRiver.Content.Items.Breacher
 			active = false;
 		}
 
-		public override void Hurt(bool pvp, bool quiet, double damage, int hitDirection, bool crit, int cooldownCounter)
+		public override void OnHurt(Player.HurtInfo info)
 		{
-			if (cooldown <= 0 && active)
+			if (cooldown <= 0 && active && Main.myPlayer == Player.whoAmI)
 			{
-				damageTicker += (int)damage;
+				damageTicker += info.Damage;
+
 				if (damageTicker >= 50)
 				{
 					damageTicker = 0;
@@ -78,9 +79,11 @@ namespace StarlightRiver.Content.Items.Breacher
 		public override void PreUpdate()
 		{
 			cooldown--;
+
 			if (active)
 			{
 				launchCounter--;
+
 				if (launchCounter == 1)
 					SummonDrop(Player, accessory);
 			}
@@ -170,8 +173,8 @@ namespace StarlightRiver.Content.Items.Breacher
 
 			if (landed)
 			{
-				Texture2D displayTex = ModContent.Request<Texture2D>(Texture + "_Display").Value;
-				Texture2D symbolTex = ModContent.Request<Texture2D>(Texture + "_Symbol").Value;
+				Texture2D displayTex = Assets.Items.Breacher.SupplyBeaconProj_Display.Value;
+				Texture2D symbolTex = Assets.Items.Breacher.SupplyBeaconProj_Symbol.Value;
 
 				Color displayColor = GetColor();
 				displayColor.A = 0;
@@ -190,7 +193,7 @@ namespace StarlightRiver.Content.Items.Breacher
 
 			Main.spriteBatch.Draw(mainTex, position, null, lightColor, Projectile.rotation, mainTex.Size() / 2, Projectile.scale, SpriteEffects.None, 0);
 
-			Texture2D starTex = ModContent.Request<Texture2D>(Texture + "_Star").Value;
+			Texture2D starTex = Assets.Items.Breacher.SupplyBeaconProj_Star.Value;
 			Color color = GetColor();
 			color.A = 0;
 			Color color2 = Color.White;
@@ -282,8 +285,10 @@ namespace StarlightRiver.Content.Items.Breacher
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 100, new TriangularTip(16), factor => factor * MathHelper.Lerp(11, 22, factor), factor => GetColor());
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 100, new TriangularTip(16), factor => factor * MathHelper.Lerp(6, 12, factor), factor => Color.White);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 100, new NoTip(), factor => factor * MathHelper.Lerp(11, 22, factor), factor => GetColor());
+			if (trail2 is null || trail2.IsDisposed)
+				trail2 = new Trail(Main.instance.GraphicsDevice, 100, new NoTip(), factor => factor * MathHelper.Lerp(6, 12, factor), factor => Color.White);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center;
@@ -297,11 +302,11 @@ namespace StarlightRiver.Content.Items.Breacher
 			Effect effect = Filters.Scene["OrbitalStrikeTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			effect.Parameters["alpha"].SetValue(trailAlpha);
 
 			trail?.Render(effect);
@@ -312,9 +317,9 @@ namespace StarlightRiver.Content.Items.Breacher
 
 	class SupplyBeaconDefense : SmartBuff
 	{
-		public override string Texture => AssetDirectory.Debug;
+		public override string Texture => AssetDirectory.Buffs + Name;
 
-		public SupplyBeaconDefense() : base("Supply Beacon", "Defense increased", false) { }
+		public SupplyBeaconDefense() : base("Supplied Defense", "Defense increased by 15", false) { }
 
 		public override void SafeSetDefaults()
 		{
@@ -331,9 +336,9 @@ namespace StarlightRiver.Content.Items.Breacher
 
 	class SupplyBeaconHeal : SmartBuff
 	{
-		public override string Texture => AssetDirectory.Debug;
+		public override string Texture => AssetDirectory.Buffs + Name;
 
-		public SupplyBeaconHeal() : base("Supply Beacon", "Regeneration increased", false) { }
+		public SupplyBeaconHeal() : base("Supplied Healing", "Life and mana regeneration increased by 10", false) { }
 
 		public override void SafeSetDefaults()
 		{
@@ -351,9 +356,9 @@ namespace StarlightRiver.Content.Items.Breacher
 
 	class SupplyBeaconDamage : SmartBuff
 	{
-		public override string Texture => AssetDirectory.Debug;
+		public override string Texture => AssetDirectory.Buffs + Name;
 
-		public SupplyBeaconDamage() : base("Supply Beacon", "Damage increased", false) { }
+		public SupplyBeaconDamage() : base("Supplied Damage", "Damage increased by 20%", false) { }
 
 		public override void SafeSetDefaults()
 		{

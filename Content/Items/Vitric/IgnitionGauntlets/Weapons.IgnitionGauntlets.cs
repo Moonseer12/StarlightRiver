@@ -15,8 +15,8 @@ namespace StarlightRiver.Content.Items.Vitric.IgnitionGauntlets
 		{
 			DisplayName.SetDefault("Ignition Gauntlets");
 			Tooltip.SetDefault("Rapidly barrages enemies with your fists while building Ignition Charge\n" +
-							   "Hold RMB to consume charge, propelling yourself forward at escape velocity\n" +
-							   "Attack while still flying to vent remaining charge in a large blast cone|n" +
+							   "Hold <right> to consume charge, propelling yourself forward at escape velocity\n" +
+							   "Attack while still flying to vent remaining charge in a large blast cone\n" +
 							   "'Heroes always arrive from the skies'");
 		}
 
@@ -161,6 +161,7 @@ namespace StarlightRiver.Content.Items.Vitric.IgnitionGauntlets
 			recipe.AddIngredient(ModContent.ItemType<SandstoneChunk>(), 8);
 			recipe.AddIngredient(ModContent.ItemType<MagmaCore>(), 2);
 			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -229,7 +230,9 @@ namespace StarlightRiver.Content.Items.Vitric.IgnitionGauntlets
 					var dust4 = Dust.NewDustPerfect(Player.Center + offset + Player.velocity * 5, ModContent.DustType<IgnitionGauntletWind>(), Vector2.Normalize(-Player.velocity) * Main.rand.NextFloat(6.5f), 0, Color.White, 1.5f);
 					dust4.rotation = dust4.velocity.ToRotation();
 					dust4.position -= (dust4.rotation - 1.57f).ToRotationVector2() * 35;
-					Player.velocity = Vector2.Lerp(Player.velocity, Player.DirectionTo(Main.MouseWorld) * 20 * (float)Math.Sqrt(lerper), 0.15f * acceleration);
+
+					if (Player.DirectionTo(Main.MouseWorld).LengthSquared() != 0)
+						Player.velocity = Vector2.Lerp(Player.velocity, Player.DirectionTo(Main.MouseWorld) * 20 * (float)Math.Sqrt(lerper), 0.15f * acceleration);
 				}
 
 				Player.fullRotationOrigin = Player.Size / 2;
@@ -257,12 +260,12 @@ namespace StarlightRiver.Content.Items.Vitric.IgnitionGauntlets
 				Player.SetCompositeArmBack(true, Player.CompositeArmStretchAmount.Full, 1.57f * Player.direction);
 		}
 
-		public override bool PreHurt(bool pvp, bool quiet, ref int damage, ref int hitDirection, ref bool crit, ref bool customDamage, ref bool playSound, ref bool genGore, ref PlayerDeathReason damageSource, ref int cooldownCounter)
+		public override bool ImmuneTo(PlayerDeathReason damageSource, int cooldownCounter, bool dodgeable)
 		{
 			if (launching)
-				return false;
+				return true;
 
-			return base.PreHurt(pvp, quiet, ref damage, ref hitDirection, ref crit, ref customDamage, ref playSound, ref genGore, ref damageSource, ref cooldownCounter);
+			return false;
 		}
 	}
 }

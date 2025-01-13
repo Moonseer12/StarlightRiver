@@ -7,7 +7,7 @@ namespace StarlightRiver.Core
 {
 	public partial class StarlightWorld : ModSystem
 	{
-		public override void ModifyWorldGenTasks(List<GenPass> tasks, ref float totalWeight)
+		public override void ModifyWorldGenTasks(List<GenPass> tasks, ref double totalWeight)
 		{
 			int ShiniesIndex = tasks.FindIndex(genpass => genpass.Name.Equals("Shinies"));
 			int SurfaceIndex = tasks.FindIndex(genpass => genpass.Name.Equals("Sunflowers"));
@@ -19,13 +19,15 @@ namespace StarlightRiver.Core
 			if (ShiniesIndex != -1)
 			{
 				tasks.Insert(DesertIndex + 1, new PassLegacy("Starlight River Temples", UndergroundTempleGen));
+
 				tasks.Insert(DesertIndex + 1, new PassLegacy("Starlight River Shrines", ShrineGen));
+				tasks.Insert(DesertIndex + 1, new PassLegacy("Starlight River Springs", SpringGen));
 				tasks.Insert(DesertIndex + 2, new PassLegacy("Starlight River Permafrost", PermafrostGen));
 				tasks.Insert(DesertIndex + 4, new PassLegacy("Starlight River Vitric Desert", VitricGen));
 				tasks.Insert(DesertIndex + 5, new PassLegacy("Starlight River Artifacts", ArtifactGen));
-				tasks.Insert(DesertIndex + 6, new PassLegacy("Starlight River Codex", BookAltarGen));
 
 				tasks.Insert(SurfaceIndex + 1, new PassLegacy("Starlight River Ivy", ForestHerbGen));
+				tasks.Insert(SurfaceIndex + 1, new PassLegacy("Starlight River Desert", DesertGen));
 				tasks.Insert(SurfaceIndex + 1, new PassLegacy("Starlight River Surface Items", SurfaceItemPass));
 				tasks.Insert(SurfaceIndex + 1, new PassLegacy("Starlight River Ankh Chests", AnkhChestPass));
 				tasks.Insert(SurfaceIndex + 1, new PassLegacy("Starlight River Drop Pods", DropPodGen));
@@ -39,6 +41,7 @@ namespace StarlightRiver.Core
 		public override void PostWorldGen()
 		{
 			ChestLootSystem.Instance.PopulateAllChests();
+			LootWraithGen();
 		}
 	}
 }

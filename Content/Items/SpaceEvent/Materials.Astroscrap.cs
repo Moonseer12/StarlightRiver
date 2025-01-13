@@ -9,7 +9,7 @@ namespace StarlightRiver.Content.Items.SpaceEvent
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Astroscrap");
-			Tooltip.SetDefault("‘Alloy salvaged from the wreckage of your world’s invaders’");
+			Tooltip.SetDefault("‘Alloy salvaged from enigmatic wreckage’");
 		}
 
 		public override void SetDefaults()
@@ -18,7 +18,7 @@ namespace StarlightRiver.Content.Items.SpaceEvent
 			Item.value = Item.sellPrice(0, 0, 5, 0);
 			Item.width = 32;
 			Item.height = 32;
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 		}
 	}
 }

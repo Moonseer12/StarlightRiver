@@ -27,8 +27,7 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Coach Gun");
-			Tooltip.SetDefault("M2 to throw out a lit bundle of dynamite\n" +
-				"Explodes in 2.5 seconds, dealing DoT and weakening enemies\n" +
+			Tooltip.SetDefault("<right> to throw out an exploding bundle of dynamite\n" +
 				"Shoot it to detonate it early\n" +
 				"'My business, my rules'");
 		}
@@ -49,6 +48,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Item.shootSpeed = 12f;
 			Item.useAmmo = AmmoID.Bullet;
 			Item.autoReuse = true;
+			Item.value = Item.sellPrice(gold: 2);
 		}
 
 		public override void AddRecipes()
@@ -253,15 +253,17 @@ namespace StarlightRiver.Content.Items.Misc
 				}
 			}
 
-			ManageCaches();
-			ManageTrail();
+			if (Main.netMode != NetmodeID.Server)
+			{
+				ManageCaches();
+				ManageTrail();
+			}
 		}
 
 		public override void Kill(int timeLeft)
 		{
 			CameraSystem.shake += 8;
-
-			SoundEngine.PlaySound(new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Magic/FireHit"), Projectile.Center);
+			Helper.PlayPitched("Magic/FireHit", 0.4f, Main.rand.NextFloat(-0.1f, 0.1f));
 			Helper.PlayPitched("Impacts/AirstrikeImpact", 0.4f, Main.rand.NextFloat(-0.1f, 0.1f));
 
 			for (int i = 0; i < 10; i++)
@@ -359,12 +361,15 @@ namespace StarlightRiver.Content.Items.Misc
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 10, new TriangularTip(4), factor => 10, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				float progress = 1 - Projectile.timeLeft / 150f;
-				var trailColor = Color.Lerp(Color.Red, Color.Yellow, progress);
-				return trailColor * 0.8f;
-			});
+				trail = new Trail(Main.instance.GraphicsDevice, 10, new NoTip(), factor => 10, factor =>
+							{
+								float progress = 1 - Projectile.timeLeft / 150f;
+								var trailColor = Color.Lerp(Color.Red, Color.Yellow, progress);
+								return trailColor * 0.8f;
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -376,15 +381,15 @@ namespace StarlightRiver.Content.Items.Misc
 			Effect effect = Filters.Scene["CoachBombTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/MotionTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.MotionTrail.Value);
 
 			trail?.Render(effect);
 
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 
@@ -423,7 +428,7 @@ namespace StarlightRiver.Content.Items.Misc
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(ModContent.BuffType<CoachDebuff>(), 170);
 			target.AddBuff(BuffID.OnFire, 170);
@@ -466,7 +471,7 @@ namespace StarlightRiver.Content.Items.Misc
 			return false;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(ModContent.BuffType<CoachDebuff>(), 170);
 			target.AddBuff(BuffID.OnFire, 170);
@@ -510,10 +515,10 @@ namespace StarlightRiver.Content.Items.Misc
 			damageIncreased = false;
 		}
 
-		public override void ModifyHitByProjectile(NPC NPC, Projectile Projectile, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitByProjectile(NPC npc, Projectile projectile, ref NPC.HitModifiers modifiers)
 		{
-			if (Projectile.DamageType == DamageClass.Ranged && damageIncreased)
-				damage = (int)(damage * 1.2f);
+			if (projectile.DamageType == DamageClass.Ranged && damageIncreased)
+				modifiers.SourceDamage *= 1.2f;
 		}
 	}
 }

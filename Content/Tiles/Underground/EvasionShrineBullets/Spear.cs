@@ -1,9 +1,17 @@
 ﻿using System;
+using System.IO;
+using Terraria.DataStructures;
 
 namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 {
-	class Spear : ModProjectile
+	class Spear : EvasionProjectile
 	{
+		public static Vector2 endPointToAssign;
+		public static int riseTimeToAssign;
+		public static int retractTimeToAssign;
+		public static int teleTimeToASsign;
+		public static int holdTimeToAssign;
+
 		public Vector2 startPoint;
 		public Vector2 endPoint;
 		public int timeToRise;
@@ -30,6 +38,15 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			Projectile.penetrate = -1;
 			Projectile.tileCollide = false;
 			Projectile.alpha = 255;
+		}
+
+		public override void OnSpawn(IEntitySource source)
+		{
+			endPoint = endPointToAssign;
+			timeToRise = riseTimeToAssign;
+			timeToRetract = retractTimeToAssign;
+			teleTime = teleTimeToASsign;
+			holdTime = holdTimeToAssign;
 		}
 
 		public override void AI()
@@ -70,21 +87,13 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			return false;
 		}
 
-		public override void OnHitPlayer(Player target, int damage, bool crit)
-		{
-			parent.lives--;
-
-			if (Main.rand.NextBool(10000))
-				Main.NewText("Skill issue.");
-		}
-
 		public override void PostDraw(Color lightColor)
 		{
 			Texture2D glowTex = ModContent.Request<Texture2D>(Texture + "Glow").Value;
 			Main.spriteBatch.Draw(glowTex, Projectile.Center - Main.screenPosition, null, new Color(100, 0, 255) * Alpha, Projectile.rotation, glowTex.Size() / 2, 1, 0, 0);
 
 			float dist = Vector2.Distance(Projectile.Center, startPoint);
-			Texture2D bodyTex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Tiles/Underground/SpearBody").Value;
+			Texture2D bodyTex = Assets.Tiles.Underground.SpearBody.Value;
 
 			for (int k = bodyTex.Height; k < dist; k += bodyTex.Height)
 			{
@@ -98,14 +107,14 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			SpriteBatch spriteBatch = Main.spriteBatch;
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			int timer = timeToRise + timeToRetract + teleTime + holdTime - Projectile.timeLeft;
 
 			if (timer > teleTime)
 			{
-				Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Tiles/Moonstone/GlowSmall").Value;
-				Texture2D tex2 = ModContent.Request<Texture2D>("StarlightRiver/Assets/Keys/GlowSoft").Value;
+				Texture2D tex = Assets.Tiles.Moonstone.GlowSmall.Value;
+				Texture2D tex2 = Assets.Keys.GlowSoft.Value;
 
 				float opacity;
 
@@ -126,7 +135,7 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			}
 			else
 			{
-				Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value;
+				Texture2D tex = Assets.GlowTrail.Value;
 				float opacity = (float)Math.Sin(timer / (float)teleTime * 3.14f) * 0.5f;
 
 				Vector2 pos = Projectile.Center - Main.screenPosition;
@@ -142,9 +151,27 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			return true;
+		}
+
+		public override void SendExtraAI(BinaryWriter writer)
+		{
+			writer.WriteVector2(endPoint);
+			writer.Write(timeToRise);
+			writer.Write(timeToRetract);
+			writer.Write(teleTime);
+			writer.Write(holdTime);
+		}
+
+		public override void ReceiveExtraAI(BinaryReader reader)
+		{
+			endPoint = reader.ReadVector2();
+			timeToRise = reader.ReadInt32();
+			timeToRetract = reader.ReadInt32();
+			teleTime = reader.ReadInt32();
+			holdTime = reader.ReadInt32();
 		}
 	}
 }

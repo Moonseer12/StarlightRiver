@@ -1,4 +1,5 @@
 ﻿using StarlightRiver.Content.Abilities;
+using StarlightRiver.Content.GUI;
 using StarlightRiver.Helpers;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
@@ -17,13 +18,13 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void Load()
 		{
 			StarlightItem.PickAmmoEvent += PickShardsWhenLoaded;
-			On.Terraria.Player.KeyDoubleTap += LoadShots;
+			On_Player.KeyDoubleTap += LoadShots;
 		}
 
 		public override void Unload()
 		{
 			StarlightItem.PickAmmoEvent -= PickShardsWhenLoaded;
-			On.Terraria.Player.KeyDoubleTap -= LoadShots;
+			On_Player.KeyDoubleTap -= LoadShots;
 		}
 
 		public override void SetStaticDefaults()
@@ -36,7 +37,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			Item.width = 18;
 			Item.height = 18;
-			Item.value = 1;
+			Item.value = Item.sellPrice(silver: 35);
 			Item.rare = ItemRarityID.Green;
 			Item.defense = 4;
 		}
@@ -72,6 +73,8 @@ namespace StarlightRiver.Content.Items.Vitric
 			if (player.whoAmI != Main.myPlayer)
 				return;
 
+			ArmorChargeUI.SetMessage($"{shardCount}/3");
+
 			if (shardCount < 3 && !loaded)
 			{
 				shardTimer++;
@@ -98,7 +101,7 @@ namespace StarlightRiver.Content.Items.Vitric
 				loaded = false; //failsafe
 		}
 
-		private void LoadShots(On.Terraria.Player.orig_KeyDoubleTap orig, Player Player, int keyDir)
+		private void LoadShots(On_Player.orig_KeyDoubleTap orig, Player Player, int keyDir)
 		{
 			if (keyDir == 0 && Player.armor[0].type == ItemType<VitricHead>())
 			{
@@ -155,7 +158,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			Item.width = 18;
 			Item.height = 18;
-			Item.value = 1;
+			Item.value = Item.sellPrice(silver: 55);
 			Item.rare = ItemRarityID.Green;
 			Item.defense = 6;
 		}
@@ -184,21 +187,21 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Vitric Greaves");
-			Tooltip.SetDefault("Slightly improved stamina regeneration");
+			Tooltip.SetDefault("+ 2 Starlight regeneration");
 		}
 
 		public override void SetDefaults()
 		{
 			Item.width = 18;
 			Item.height = 18;
-			Item.value = 1;
+			Item.value = Item.sellPrice(silver: 30);
 			Item.rare = ItemRarityID.Green;
 			Item.defense = 5;
 		}
 
 		public override void UpdateEquip(Player Player)
 		{
-			Player.GetHandler().StaminaRegenRate += 0.1f;
+			Player.GetHandler().StaminaRegenRate += 2;
 		}
 
 		public override void AddRecipes()

@@ -1,5 +1,6 @@
 ﻿using NetEasy;
 using StarlightRiver.Content.CustomHooks;
+using StarlightRiver.Content.GUI;
 using StarlightRiver.Core.Systems.BarrierSystem;
 using System;
 using System.Collections.Generic;
@@ -23,8 +24,8 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 		public override void Load()
 		{
-			On.Terraria.Player.KeyDoubleTap += ActivateSpear;
-			On.Terraria.Main.DrawPendingMouseText += SpoofMouseItem;
+			On_Player.KeyDoubleTap += ActivateSpear;
+			On_Main.DrawPendingMouseText += SpoofMouseItem;
 			StarlightPlayer.PreDrawEvent += DrawMoonCharge;
 			StarlightPlayer.OnHitNPCEvent += ChargeFromMelee;
 			StarlightPlayer.OnHitNPCWithProjEvent += ChargeFromProjectile;
@@ -32,8 +33,8 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 		public override void Unload()
 		{
-			On.Terraria.Player.KeyDoubleTap -= ActivateSpear;
-			On.Terraria.Main.DrawPendingMouseText -= SpoofMouseItem;
+			On_Player.KeyDoubleTap -= ActivateSpear;
+			On_Main.DrawPendingMouseText -= SpoofMouseItem;
 			StarlightPlayer.PreDrawEvent -= DrawMoonCharge;
 			StarlightPlayer.OnHitNPCEvent -= ChargeFromMelee;
 			StarlightPlayer.OnHitNPCWithProjEvent -= ChargeFromProjectile;
@@ -42,16 +43,16 @@ namespace StarlightRiver.Content.Items.Moonstone
 			dummySpear = null;
 		}
 
-		private void ChargeFromProjectile(Player Player, Projectile proj, NPC target, int damage, float knockback, bool crit)
+		private void ChargeFromProjectile(Player Player, Projectile proj, NPC target, NPC.HitInfo info, int damageDone)
 		{
 			if (proj.DamageType.Type == DamageClass.Melee.Type && proj.type != ProjectileType<DatsuzeiProjectile>() && IsArmorSet(Player))
-				AddCharge(Player, damage);
+				AddCharge(Player, damageDone);
 		}
 
-		private void ChargeFromMelee(Player Player, Item Item, NPC target, int damage, float knockback, bool crit)
+		private void ChargeFromMelee(Player Player, Item Item, NPC target, NPC.HitInfo info, int damageDone)
 		{
 			if (Item.DamageType.Type == DamageClass.Melee.Type && IsArmorSet(Player))
-				AddCharge(Player, damage);
+				AddCharge(Player, damageDone);
 		}
 
 		private void AddCharge(Player Player, int damage)
@@ -67,13 +68,13 @@ namespace StarlightRiver.Content.Items.Moonstone
 			if (head.moonCharge >= 180 && oldCharge < 180 || head.moonCharge >= 720 && oldCharge < 720)
 				head.moonFlash = 30;
 
-			Player.GetModPlayer<StarlightPlayer>().shouldSendHitPacket = true;
+			Player.GetModPlayer<StarlightPlayer>().SetHitPacketStatus(shouldRunProjMethods: false);
 		}
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Moonstone Helmet");
-			Tooltip.SetDefault("2% increased melee critical strike chance\n+20 Barrier");
+			Tooltip.SetDefault("2% increased melee critical strike chance\n+20 {{Barrier}}");
 		}
 
 		public override void SetDefaults()
@@ -99,7 +100,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 		public override void UpdateArmorSet(Player player)
 		{
-			player.setBonus = "Accumulate lunar energy by dealing melee damage\ndouble tap DOWN to summon the legendary spear Datsuzei\nDatsuzei consumes lunar energy and dissapears at zero";
+			player.setBonus = "Accumulate lunar energy by dealing melee damage\nDouble tap DOWN to summon the legendary spear Datsuzei\nDatsuzei consumes this lunar energy and dissapears at zero";
 
 			if (moonCharge > 720)
 				moonCharge = 720;
@@ -109,10 +110,12 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 			Lighting.AddLight(player.Center + new Vector2(0, -16), new Vector3(0.55f, 0.5f, 0.9f) * moonCharge / 720f * 0.5f);
 
+			ArmorChargeUI.SetMessage($"{Math.Truncate(moonCharge / 720f * 100)}%");
+
 			if (spearOn)
 			{
 				if (!(Main.mouseItem.type == dummySpear.type) && !Main.mouseItem.IsAir)
-					Main.LocalPlayer.QuickSpawnClonedItem(null, Main.mouseItem, Main.mouseItem.stack);
+					Main.LocalPlayer.QuickSpawnItem(null, Main.mouseItem, Main.mouseItem.stack);
 
 				Main.mouseItem = dummySpear;
 				player.inventory[58] = dummySpear;
@@ -132,7 +135,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 			}
 		}
 
-		private void ActivateSpear(On.Terraria.Player.orig_KeyDoubleTap orig, Player player, int keyDir)
+		private void ActivateSpear(On_Player.orig_KeyDoubleTap orig, Player player, int keyDir)
 		{
 			if (keyDir == 0 && IsArmorSet(player))
 			{
@@ -158,7 +161,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 			orig(player, keyDir);
 		}
 
-		private void SpoofMouseItem(On.Terraria.Main.orig_DrawPendingMouseText orig)
+		private void SpoofMouseItem(On_Main.orig_DrawPendingMouseText orig)
 		{
 			Player player = Main.LocalPlayer;
 
@@ -214,12 +217,12 @@ namespace StarlightRiver.Content.Items.Moonstone
 			if (IsArmorSet(Player) && !Player.dead && PlayerTarget.canUseTarget)
 			{
 				spriteBatch.End();
-				spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 				var head = Player.armor[0].ModItem as MoonstoneHead;
 				float charge = head.moonCharge / 720f;
 
-				Texture2D texRing = Request<Texture2D>(AssetDirectory.VitricItem + "BossBowRing").Value;
+				Texture2D texRing = Assets.Items.Vitric.BossBowRing.Value;
 				Color color = new Color(130, 110, 225) * (0.5f + charge * 0.5f);
 
 				if (charge <= 180 / 720f)
@@ -234,7 +237,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 				spriteBatch.End();
 
-				Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, default, null, Main.GameViewMatrix.TransformationMatrix);
+				Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, RasterizerState.CullNone, null, Main.GameViewMatrix.TransformationMatrix);
 			}
 		}
 
@@ -255,7 +258,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Moonstone Chestpiece");
-			Tooltip.SetDefault("+35 Barrier");
+			Tooltip.SetDefault("+35 {{Barrier}}");
 		}
 
 		public override void SetDefaults()
@@ -312,7 +315,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Moonstone Greaves");
-			Tooltip.SetDefault("Improved acceleration\n +25 Barrier");
+			Tooltip.SetDefault("Improved acceleration\n +25 {{Barrier}}");
 		}
 
 		public override void SetDefaults()

@@ -13,7 +13,7 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Electro Arrow");
-			Tooltip.SetDefault("Chains to nearby enemies\nInflicts overcharge, greatly lowering enemy defense");
+			Tooltip.SetDefault("Chains to nearby enemies\nInflicts {{BUFF:Overcharge}}");
 		}
 
 		public override void SetDefaults()
@@ -22,7 +22,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Item.DamageType = DamageClass.Ranged;
 			Item.width = 8;
 			Item.height = 8;
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 			Item.consumable = true;
 			Item.crit = -4;
 			Item.knockBack = 0f;
@@ -36,7 +36,6 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void ModifyTooltips(List<TooltipLine> tooltips)
 		{
 			tooltips.FirstOrDefault(n => n.Name == "Damage").Text = "Deals 25% bow damage";
-			tooltips.FirstOrDefault(n => n.Name == "CritChance").Text = "Cannot critically strike";
 		}
 
 		public override void AddRecipes()
@@ -118,7 +117,7 @@ namespace StarlightRiver.Content.Items.Misc
 			if (point1 == Vector2.Zero || point2 == Vector2.Zero)
 				return;
 
-			Texture2D tex = Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value;
+			Texture2D tex = Assets.GlowTrail.Value;
 
 			for (int k = 1; k < nodes.Count; k++)
 			{
@@ -144,13 +143,13 @@ namespace StarlightRiver.Content.Items.Misc
 			return target.whoAmI != blacklistNPC;
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
-			damage /= 4;
-			crit = false;
+			modifiers.FinalDamage *= 0.25f;
+			modifiers.DisableCrit();
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(BuffType<Overcharge>(), 300);
 

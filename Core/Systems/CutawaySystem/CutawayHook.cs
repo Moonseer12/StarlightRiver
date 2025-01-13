@@ -9,20 +9,23 @@ namespace StarlightRiver.Core.Systems.CutawaySystem
 {
 	public class CutawayHook : HookGroup
 	{
-		public static List<Cutaway> cutaways = new();
+		public static List<Cutaway> cutaways;
 
-		public static ScreenTarget cutawayTarget = new(DrawCutawayTarget, () => Inside, 1);
+		public static ScreenTarget cutawayTarget;
 
-		private static bool Inside => cutaways.Any(n => n.fadeTime < 0.95f);
+		private static bool Inside => cutaways?.Any(n => n.fadeTime < 0.95f) ?? false;
 
 		public override void Load()
 		{
 			if (Main.dedServ)
 				return;
 
-			On.Terraria.Main.DrawInfernoRings += DrawNegative;
-			On.Terraria.Main.DrawDust += DrawPositive;
-			On.Terraria.WorldGen.SaveAndQuit += ClearCutaways;
+			cutaways = new();
+			cutawayTarget = new(DrawCutawayTarget, () => Inside, 1);
+
+			On_Main.DrawInfernoRings += DrawNegative;
+			On_Main.DrawDust += DrawPositive;
+			On_WorldGen.SaveAndQuit += ClearCutaways;
 		}
 
 		public override void Unload()
@@ -31,13 +34,13 @@ namespace StarlightRiver.Core.Systems.CutawaySystem
 			cutawayTarget = null;
 		}
 
-		private void ClearCutaways(On.Terraria.WorldGen.orig_SaveAndQuit orig, Action callback)
+		private void ClearCutaways(On_WorldGen.orig_SaveAndQuit orig, Action callback)
 		{
 			cutaways.Clear();
 			orig(callback);
 		}
 
-		private void DrawPositive(On.Terraria.Main.orig_DrawDust orig, Main self)
+		private void DrawPositive(On_Main.orig_DrawDust orig, Main self)
 		{
 			for (int k = 0; k < cutaways.Count; k++)
 				cutaways[k].Draw();
@@ -45,9 +48,12 @@ namespace StarlightRiver.Core.Systems.CutawaySystem
 			orig(self);
 		}
 
-		private void DrawNegative(On.Terraria.Main.orig_DrawInfernoRings orig, Main self)
+		private void DrawNegative(On_Main.orig_DrawInfernoRings orig, Main self)
 		{
 			orig(self);
+
+			if (StarlightRiver.debugMode)
+				return;
 
 			if (Inside)
 			{
@@ -63,12 +69,12 @@ namespace StarlightRiver.Core.Systems.CutawaySystem
 				effect.Parameters["opacity"].SetValue(1 - activeCutaway.fadeTime);
 
 				Main.spriteBatch.End();
-				Main.spriteBatch.Begin(default, default, default, default, default, effect);
+				Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, effect);
 
 				Main.spriteBatch.Draw(cutawayTarget.RenderTarget, Vector2.Zero, Color.White);
 
 				Main.spriteBatch.End();
-				Main.spriteBatch.Begin(default, default, default, default, default, default);
+				Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default);
 			}
 		}
 

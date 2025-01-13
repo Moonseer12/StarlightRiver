@@ -19,7 +19,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Coalescence");
-			Tooltip.SetDefault("Charge for a volley of brilliant magic\nFully charged shots leech mana when they collide");
+			Tooltip.SetDefault("Charge for a volley of brilliant magic\nFully charged shots leech mana where their arrows meet");
 		}
 
 		public override void SetDefaults()
@@ -42,6 +42,8 @@ namespace StarlightRiver.Content.Items.Vitric
 			Item.mana = 40;
 
 			Item.useTurn = true;
+
+			Item.value = Item.sellPrice(gold: 2, silver: 75);
 		}
 
 		public override void ModifyTooltips(List<TooltipLine> tooltips)
@@ -74,6 +76,17 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			if (Main.projectile.Any(n => n.active && n.owner == Player.whoAmI && n.type == ProjectileType<VitricBowProjectile>()))
 				mult = 0;
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient<VitricBow>();
+			recipe.AddIngredient<SandstoneChunk>(7);
+			recipe.AddIngredient<VitricOre>(7);
+			recipe.AddIngredient<MagmaCore>();
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -155,8 +168,8 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
-			Texture2D texStar = Request<Texture2D>(AssetDirectory.Dust + "Aurora").Value;
-			Texture2D texGlow = Request<Texture2D>("StarlightRiver/Assets/Keys/GlowSoft").Value;
+			Texture2D texStar = Assets.Dusts.Aurora.Value;
+			Texture2D texGlow = Assets.Keys.GlowSoft.Value;
 
 			var color1 = new Color(80, 240, 255);
 			var color2 = new Color(90, 200, 255);
@@ -204,13 +217,13 @@ namespace StarlightRiver.Content.Items.Vitric
 			effect.Parameters["uOpacity"].SetValue(prog);
 
 			sb.End();
-			sb.Begin(default, BlendState.Additive, default, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
+			sb.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, effect, Main.GameViewMatrix.TransformationMatrix);
 
 			Rectangle target = toRect(pos, (int)(16 * (w + prog)), (int)(60 * (h + prog)));
 			sb.Draw(texRing, target, null, color * prog, Projectile.rotation, texRing.Size() / 2, 0, 0);
 
 			sb.End();
-			sb.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			sb.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 
 		private Rectangle toRect(Vector2 pos, int w, int h)
@@ -432,7 +445,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			int lifeTime = 122 - Projectile.timeLeft;
 			int timeToMerge = (int)(Math.Min(0.4f, TargetDistance / 1200f) * 90);
@@ -455,18 +468,18 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		public override void SendExtraAI(BinaryWriter writer)
 		{
-			writer.WritePackedVector2(targetPoint);
+			writer.WriteVector2(targetPoint);
 		}
 
 		public override void ReceiveExtraAI(BinaryReader reader)
 		{
-			targetPoint = reader.ReadPackedVector2();
+			targetPoint = reader.ReadVector2();
 		}
 
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
-			Texture2D tex = Request<Texture2D>(AssetDirectory.MiscTextures + "DirectionalBeam").Value;
-			Texture2D tex2 = Request<Texture2D>(AssetDirectory.VitricItem + "BossBowArrow").Value;
+			Texture2D tex = Assets.Misc.DirectionalBeam.Value;
+			Texture2D tex2 = Assets.Items.Vitric.BossBowArrow.Value;
 			var color = new Color(100 + (int)(Projectile.ai[1] / 4f * 100), 200, 255);
 
 			if (Projectile.timeLeft < 30)

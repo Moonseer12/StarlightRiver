@@ -36,6 +36,8 @@ namespace StarlightRiver.Content.Items.Vitric
 			Item.shoot = ModContent.ProjectileType<NeedlerProj>();
 			Item.shootSpeed = 14f;
 			Item.autoReuse = true;
+
+			Item.value = Item.sellPrice(gold: 2, silver: 75);
 		}
 
 		public override Vector2? HoldoutOffset()
@@ -75,6 +77,16 @@ namespace StarlightRiver.Content.Items.Vitric
 			player.itemRotation = MathHelper.WrapAngle(player.itemRotation);
 			return false;
 		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient<SandstoneChunk>(5);
+			recipe.AddIngredient<VitricOre>(10);
+			recipe.AddIngredient<MagmaCore>(2);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
+		}
 	}
 
 	public class NeedlerProj : ModProjectile
@@ -108,7 +120,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			foreach (NPC NPC in Main.npc.Where(n => n.active && !n.dontTakeDamage && !n.townNPC && n.life > 0 && n.Hitbox.Intersects(Projectile.Hitbox)))
 			{
-				OnHitNPC(NPC, 0, 0, false);
+				OnHitNPC(NPC, new NPC.HitInfo() { Damage = 0 }, 0);
 			}
 		}
 
@@ -179,7 +191,7 @@ namespace StarlightRiver.Content.Items.Vitric
 				findIfHit();
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (!stuck && target.life > 0)
 			{
@@ -215,7 +227,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
 			if (stuck)
 			{
-				tex = ModContent.Request<Texture2D>(AssetDirectory.VitricItem + "NeedlerBloom");
+				tex = Assets.Items.Vitric.NeedlerBloom;
 				color = Color.Lerp(Color.Orange, Color.Red, needleLerp / 20f);
 				color.A = 0;
 				spriteBatch.Draw(tex.Value, Projectile.Center - Main.screenPosition + new Vector2(0, Projectile.gfxOffY), null, color * 0.66f, Projectile.rotation, tex.Size() * 0.5f, (Projectile.scale * (needleLerp / 10f) + 0.25f) * new Vector2(1f, 1.25f), SpriteEffects.None, 0f);
@@ -256,13 +268,12 @@ namespace StarlightRiver.Content.Items.Vitric
 			return false;
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
-			crit = true;
-			base.ModifyHitNPC(target, ref damage, ref knockback, ref crit, ref hitDirection);
+			modifiers.SetCrit();
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(BuffID.OnFire, 180);
 

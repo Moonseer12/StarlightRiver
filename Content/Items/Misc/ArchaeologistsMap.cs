@@ -13,7 +13,7 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Archaeologist's Map");
-			Tooltip.SetDefault("Reveals the location of one nearby artifact");
+			Tooltip.SetDefault("Reveals the location of a nearby Artifact");
 		}
 
 		public override void SetDefaults()
@@ -29,7 +29,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Item.rare = ItemRarityID.Blue;
 			Item.noUseGraphic = false;
 			Item.consumable = true;
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 			Item.UseSound = SoundID.Item8;
 		}
 

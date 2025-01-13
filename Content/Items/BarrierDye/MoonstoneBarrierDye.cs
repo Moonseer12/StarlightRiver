@@ -15,19 +15,21 @@ namespace StarlightRiver.Content.Items.BarrierDye
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Moonstone Tincture");
-			Tooltip.SetDefault("Causes barrier to reflect the light of the moon\nEquipable\nVanity Item");
+			Tooltip.SetDefault("Causes {{barrier}} to reflect the light of the moon\nEquipable\nVanity Item");
 		}
 
 		public override void SetDefaults()
 		{
 			Item.rare = ItemRarityID.Orange;
+
+			Item.value = Item.sellPrice(silver: 90);
 		}
 
 		public override void AddRecipes()
 		{
 			Recipe recipe = CreateRecipe();
 			recipe.AddIngredient(ModContent.ItemType<MoonstoneBarItem>(), 6);
-			recipe.AddTile(TileID.Anvils);
+			recipe.AddTile(TileID.DyeVat);
 			recipe.Register();
 		}
 
@@ -49,8 +51,8 @@ namespace StarlightRiver.Content.Items.BarrierDye
 			effect.Parameters["intensity"].SetValue(10f * MathF.Min(barrier.rechargeAnimationTimer, 1));
 			effect.Parameters["time"].SetValue((float)Main.timeForVisualEffects * 0.1f);
 
-			effect.Parameters["noiseTexture1"].SetValue(ModContent.Request<Texture2D>(AssetDirectory.Assets + "Noise/MiscNoise3").Value);
-			effect.Parameters["noiseTexture2"].SetValue(ModContent.Request<Texture2D>(AssetDirectory.Assets + "Noise/MiscNoise4").Value);
+			effect.Parameters["noiseTexture1"].SetValue(Assets.Noise.MiscNoise3.Value);
+			effect.Parameters["noiseTexture2"].SetValue(Assets.Noise.MiscNoise4.Value);
 			effect.Parameters["color1"].SetValue(Color.Magenta.ToVector4());
 			effect.Parameters["color2"].SetValue(Color.Cyan.ToVector4());
 			effect.Parameters["opacity"].SetValue(1);
@@ -61,19 +63,16 @@ namespace StarlightRiver.Content.Items.BarrierDye
 			effect.Parameters["drawOriginal"].SetValue(false);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
 
 			Rectangle rect = CustomHooks.PlayerTarget.getPlayerTargetSourceRectangle(Player.whoAmI);
 
 			Vector2 drawPos = CustomHooks.PlayerTarget.getPlayerTargetPosition(Player.whoAmI);
 
-			if (Main.LocalPlayer.gravDir == -1f)
-				spriteBatch.Draw(tex, drawPos, rect, Color.White, 0f, Vector2.Zero, 1f, SpriteEffects.FlipVertically, 0f);
-			else
-				spriteBatch.Draw(tex, drawPos, rect, Color.White);
+			spriteBatch.Draw(tex, drawPos, rect, Color.White);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 }

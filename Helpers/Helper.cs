@@ -1,9 +1,6 @@
 ﻿using Microsoft.Xna.Framework.Audio;
 using ReLogic.Graphics;
 using ReLogic.Utilities;
-using StarlightRiver.Content.Codex;
-using StarlightRiver.Content.GUI;
-using StarlightRiver.Core.Loaders.UILoading;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -77,21 +74,6 @@ namespace StarlightRiver.Helpers
 		public static void UpdateRotation(this Player Player, float value)
 		{
 			Player.GetModPlayer<StarlightPlayer>().rotation = value;
-		}
-
-		public static bool OnScreen(Vector2 pos)
-		{
-			return pos.X > -16 && pos.X < Main.screenWidth + 16 && pos.Y > -16 && pos.Y < Main.screenHeight + 16;
-		}
-
-		public static bool OnScreen(Rectangle rect)
-		{
-			return rect.Intersects(new Rectangle(0, 0, Main.screenWidth, Main.screenHeight));
-		}
-
-		public static bool OnScreen(Vector2 pos, Vector2 size)
-		{
-			return OnScreen(new Rectangle((int)pos.X, (int)pos.Y, (int)size.X, (int)size.Y));
 		}
 
 		public static Vector3 Vec3(this Vector2 vector)
@@ -177,30 +159,15 @@ namespace StarlightRiver.Helpers
 			return min + difference * val;
 		}
 
-		public static void UnlockCodexEntry<type>(Player Player)
-		{
-			CodexHandler mp = Player.GetModPlayer<CodexHandler>();
-			CodexEntry entry = mp.Entries.FirstOrDefault(n => n is type);
-
-			if (entry is null || entry.RequiresUpgradedBook && mp.CodexState != 2)
-				return; //dont give the Player void entries if they dont have the void book
-
-			if (entry.Locked)
-			{
-				entry.Locked = false;
-				entry.New = true;
-
-				if (mp.CodexState != 0)
-				{
-					UILoader.GetUIState<CodexPopup>().TripEntry(entry.Title, entry.Icon);
-					SoundEngine.PlaySound(new SoundStyle($"{nameof(StarlightRiver)}/Sounds/CodexUnlock"));
-				}
-			}
-		}
-
 		public static bool CheckLinearCollision(Vector2 point1, Vector2 point2, Rectangle hitbox, out Vector2 intersectPoint)
 		{
 			intersectPoint = Vector2.Zero;
+
+			if (StarlightRiver.debugMode)
+			{
+				for (int k = 0; k < 20; k++)
+					Dust.NewDustPerfect(Vector2.Lerp(point1, point2, k / 20f), DustID.MagicMirror, Vector2.Zero, 0, default, 0.5f);
+			}
 
 			return
 				LinesIntersect(point1, point2, hitbox.TopLeft(), hitbox.TopRight(), out intersectPoint) ||
@@ -292,7 +259,7 @@ namespace StarlightRiver.Helpers
 
 					Tile tile = Framing.GetTileSafely(thisPoint);
 
-					if (Main.tileSolid[tile.TileType] && tile.HasTile)
+					if (Main.tileSolid[tile.TileType] && tile.HasTile && !Main.tileSolidTop[tile.TileType])
 					{
 						var rect = new Rectangle(thisPoint.X * 16, thisPoint.Y * 16, 16, 16);
 
@@ -420,6 +387,63 @@ namespace StarlightRiver.Helpers
 			return a * (1.0f - f) + b * f;
 		}
 
+		/// <summary>
+		/// <para>Animations are interpolated with a cubic bezier. You will define the bezier using the p1 and p2 parameters.</para>
+		/// <para>This function serves as a constructor for the real interpolation function</para>
+		/// <para>Use https://cubic-bezier.com/ to find appropriate parameters.</para>
+		/// </summary>
+		public static Func<float, float> CubicBezier(float p1x, float p1y, float p2x, float p2y)
+		{
+			if (p1x < 0 || p1x > 1 || p2x < 0 || p2x > 1)
+			{
+				throw new ArgumentException("X point parameters of cubic bezier timing function should be between values 0 and 1!");
+			}
+
+			Vector2 p0 = Vector2.Zero;
+			var p1 = new Vector2(p1x, p1y);
+			var p2 = new Vector2(p2x, p2y);
+			Vector2 p3 = Vector2.One;
+
+			float timing(float t)
+			{
+				return (float)(Math.Pow(1 - t, 3) * p0.X + 3 * Math.Pow(1 - t, 2) * t * p1.X + 3 * (1 - t) * Math.Pow(t, 2) * p2.X + Math.Pow(t, 3) * p3.X);
+			}
+
+			float progression(float x)
+			{
+				float time;
+				if (x <= 0)
+					time = 0;
+				else if (x >= 1)
+					time = 1;
+				else
+					time = BinarySolve(timing, x, 0.001f);
+
+				return (float)(Math.Pow(1 - time, 3) * p0.Y + 3 * Math.Pow(1 - time, 2) * time * p1.Y + 3 * (1 - time) * Math.Pow(time, 2) * p2.Y + Math.Pow(time, 3) * p3.Y);
+			}
+
+			return progression;
+		}
+
+		// Binary solver for cubic bezier
+		private static float BinarySolve(in Func<float, float> function, in float target, in float precision, float start = 0, float end = 1, int iteration = 0)
+		{
+			if (iteration > 1000)
+			{
+				throw new ArgumentException("Could not converge to an answer in over 1000 iterations.");
+			}
+
+			float halfway = (start + end) / 2;
+			float res = function(halfway);
+
+			if (Math.Abs(res - target) < precision)
+				return halfway;
+			else if (target < res)
+				return BinarySolve(function, target, precision, start, halfway, iteration + 1);
+			else
+				return BinarySolve(function, target, precision, halfway, end, iteration + 1);
+		}
+
 		public static T[] FastUnion<T>(this T[] front, T[] back)
 		{
 			var combined = new T[front.Length + back.Length];
@@ -432,11 +456,18 @@ namespace StarlightRiver.Helpers
 
 		public static bool IsEdgeTile(int x, int y)
 		{
-			return
-				!Framing.GetTileSafely(x - 1, y).HasTile ||
-				!Framing.GetTileSafely(x + 1, y).HasTile ||
-				!Framing.GetTileSafely(x, y - 1).HasTile ||
-				!Framing.GetTileSafely(x, y + 1).HasTile;
+			Tile leftTile = Framing.GetTileSafely(x - 1, y);
+			Tile rightTile = Framing.GetTileSafely(x + 1, y);
+			Tile topTile = Framing.GetTileSafely(x, y - 1);
+			Tile bottomTile = Framing.GetTileSafely(x, y + 1);
+
+			bool isEdge =
+				!(leftTile.HasTile && Main.tileSolid[leftTile.TileType]) ||
+				!(rightTile.HasTile && Main.tileSolid[rightTile.TileType]) ||
+				!(topTile.HasTile && Main.tileSolid[topTile.TileType]) ||
+				!(bottomTile.HasTile && Main.tileSolid[bottomTile.TileType]);
+
+			return isEdge;
 		}
 
 		public static SlotId PlayPitched(string path, float volume, float pitch, Vector2? position = null)
@@ -563,4 +594,3 @@ namespace StarlightRiver.Helpers
 		}
 	}
 }
-

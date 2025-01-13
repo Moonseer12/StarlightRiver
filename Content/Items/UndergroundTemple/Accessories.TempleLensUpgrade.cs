@@ -1,7 +1,7 @@
 ﻿using StarlightRiver.Content.Buffs;
 using StarlightRiver.Content.Dusts;
-using StarlightRiver.Core.Systems.ExposureSystem;
 using StarlightRiver.Content.Items.BaseTypes;
+using StarlightRiver.Core.Systems.ExposureSystem;
 using System.Linq;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
@@ -12,40 +12,41 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 	{
 		public override string Texture => AssetDirectory.CaveTempleItem + Name;
 
-		public TempleLensUpgrade() : base("Truestrike Lens", "Critical strikes expose enemies near the struck enemy\nExposed enemies have 20% increased Exposure on first hit\n+4% critical strike chance\n+10% critical strike damage") { }
+		public TempleLensUpgrade() : base("Truestrike Lens", "Critical strikes inflict {{BUFF:Exposed}} on nearby enemies, increasing their {{Exposure}}\n+2% critical strike chance\n+20% critical strike damage") { }
 
 		public override void SafeSetDefaults()
 		{
+			Item.value = Item.sellPrice(0, 2, 50, 0);
 			Item.rare = ItemRarityID.Orange;
 		}
 
 		public override void SafeUpdateEquip(Player Player)
 		{
-			Player.GetCritChance(DamageClass.Generic) += 4;
-			Player.GetModPlayer<CritMultiPlayer>().AllCritMult += 0.1f;
+			Player.GetCritChance(DamageClass.Generic) += 2;
+			Player.GetModPlayer<CritMultiPlayer>().AllCritMult += 0.2f;
 		}
 
 		public override void Load()
 		{
-			StarlightPlayer.ModifyHitNPCEvent += ModifyHurtLens;
-			StarlightProjectile.ModifyHitNPCEvent += ModifyProjectileLens;
+			StarlightPlayer.OnHitNPCEvent += ModifyHurtLens;
+			StarlightProjectile.OnHitNPCEvent += ModifyProjectileLens;
 		}
 
-		private void ModifyHurtLens(Player Player, Item Item, NPC target, ref int damage, ref float knockback, ref bool crit)
+		private void ModifyHurtLens(Player Player, Item Item, NPC target, NPC.HitInfo info, int damageDone)
 		{
-			if (Equipped(Player) && crit)
+			if (Equipped(Player) && info.Crit)
 				ApplyExposed(target);
 		}
 
-		private void ModifyProjectileLens(Projectile Projectile, NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		private void ModifyProjectileLens(Projectile Projectile, NPC target, NPC.HitInfo info, int damageDone)
 		{
-			if (Equipped(Main.player[Projectile.owner]) && crit)
+			if (Equipped(Main.player[Projectile.owner]) && info.Crit)
 				ApplyExposed(target);
 		}
 
 		private void ApplyExposed(NPC target)
 		{
-			var nearby = Main.npc.Where(n => n.active && n != target && n.Distance(target.Center) < 250).ToList();
+			var nearby = Main.npc.Where(n => n.active && n != target && n.Distance(target.Center) < 250 && !n.dontTakeDamage && !n.immortal && !n.friendly).ToList();
 			nearby.ForEach(n => n.AddBuff(ModContent.BuffType<Exposed>(), 200));
 			nearby.ForEach(n => Exposed.CreateDust(n, false));
 		}
@@ -64,12 +65,12 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public Exposed() : base("Exposed", "Taking extra damage!", true) { }
+		public Exposed() : base("Exposed", "Effected entities have 20% exposure to all damage", true) { }
 
 		public override void Load()
 		{
-			StarlightNPC.ModifyHitByItemEvent += DelBuffItem;
-			StarlightNPC.ModifyHitByProjectileEvent += DelBuffProjectile;
+			StarlightNPC.OnHitByItemEvent += DelBuffItem;
+			StarlightNPC.OnHitByProjectileEvent += DelBuffProjectile;
 		}
 
 		public override void Update(NPC npc, ref int buffIndex)
@@ -77,18 +78,18 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 			npc.GetGlobalNPC<ExposureNPC>().ExposureMultAll += 0.20f;
 		}
 
-		private void DelBuffProjectile(NPC NPC, Projectile Projectile, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		private void DelBuffProjectile(NPC NPC, Projectile Projectile, NPC.HitInfo info, int damageDone)
 		{
-			if (Inflicted(NPC) && !crit)
+			if (Inflicted(NPC) && !info.Crit)
 			{
 				NPC.DelBuff(NPC.FindBuffIndex(Type));
 				CreateDust(NPC, true);
 			}
 		}
 
-		private void DelBuffItem(NPC NPC, Player Player, Item Item, ref int damage, ref float knockback, ref bool crit)
+		private void DelBuffItem(NPC NPC, Player Player, Item Item, NPC.HitInfo info, int damageDone)
 		{
-			if (Inflicted(NPC) && !crit)
+			if (Inflicted(NPC) && !info.Crit)
 			{
 				NPC.DelBuff(NPC.FindBuffIndex(Type));
 				CreateDust(NPC, true);
@@ -102,11 +103,11 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 				if (hit)
 				{
 					Vector2 dir = Main.rand.NextVector2CircularEdge(1, 1);
-					Dust.NewDustPerfect(NPC.Center + (dir * 15), ModContent.DustType<GlowLineFast>(), dir * Main.rand.NextFloat(6), 0, Color.Gold, 0.75f);
+					Dust.NewDustPerfect(NPC.Center + dir * 15, ModContent.DustType<GlowLineFast>(), dir * Main.rand.NextFloat(6), 0, Color.Gold, 0.75f);
 				}
 
 				Vector2 dir2 = Main.rand.NextVector2CircularEdge(1, 1);
-				Dust.NewDustPerfect(NPC.Center + (dir2 * 15), ModContent.DustType<Glow>(), dir2 * Main.rand.NextFloat(6), 0, Color.Gold, 0.55f);
+				Dust.NewDustPerfect(NPC.Center + dir2 * 15, ModContent.DustType<Glow>(), dir2 * Main.rand.NextFloat(6), 0, Color.Gold, 0.55f);
 			}
 		}
 	}

@@ -1,4 +1,5 @@
-﻿using Terraria.ID;
+﻿using StarlightRiver.Core.Systems;
+using Terraria.ID;
 using Terraria.ObjectData;
 using static Terraria.ModLoader.ModContent;
 
@@ -15,11 +16,12 @@ namespace StarlightRiver.Content.Tiles.Overgrow
 		}
 	}
 
+	[SLRDebug]
 	class WispAltarLItem : QuickTileItem
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public WispAltarLItem() : base("Wisp Altar L Placer", "Debug Item", "WispAltarL", -1) { }
+		public WispAltarLItem() : base("Wisp Altar L Placer", "{{Debug}} Item", "WispAltarL", -1) { }
 	}
 
 	class WispAltarR : ModTile
@@ -33,10 +35,11 @@ namespace StarlightRiver.Content.Tiles.Overgrow
 		}
 	}
 
+	[SLRDebug]
 	class WispAltarRItem : QuickTileItem
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public WispAltarRItem() : base("Wisp Altar R Placer", "Debug Item", "WispAltarR", -1) { }
+		public WispAltarRItem() : base("Wisp Altar R Placer", "{{Debug}} Item", "WispAltarR", -1) { }
 	}
 }

@@ -1,4 +1,5 @@
-﻿using StarlightRiver.Helpers;
+﻿using StarlightRiver.Core.Systems.DummyTileSystem;
+using StarlightRiver.Helpers;
 using System;
 using Terraria.GameInput;
 using Terraria.Graphics.Effects;
@@ -8,6 +9,10 @@ namespace StarlightRiver.Content.Abilities.Faewhip
 {
 	public class Whip : Ability
 	{
+		public override string Name => "Fae Whip";
+		public override string Tooltip => "Channel Starlight to forge the energies of connection into an appendage extending from your own arm, allowing you to manipualate objects at a distance and maneuver yourself with the dexterity of the Overgrowth's denizens. NEWBLOCK " +
+			"Objects with a thin, pulsing yellow outline can be grabbed with this appendage, as well as enemies and walls. Anything you can overpower can be manipulated, and anything you can't can be used as an anchor to fling yourself.";
+
 		public override string Texture => "StarlightRiver/Assets/Abilities/Faeflame";
 		public override float ActivationCostDefault => 0.15f;
 		public override Color Color => new(255, 247, 126);
@@ -153,6 +158,19 @@ namespace StarlightRiver.Content.Abilities.Faewhip
 						}
 					}
 
+					// Check VS dummy interactions
+					foreach (Dummy dummy in DummySystem.dummies)
+					{
+						var whippable = dummy as IFaeWhippable;
+
+						if (whippable != null && whippable.IsWhipColliding(tipsPosition))
+						{
+							attachedWhippable = whippable;
+							attachedWhippable.OnAttach(this);
+							attached = true;
+						}
+					}
+
 					//Check VS Tile interactions
 					Tile tile = Framing.GetTileSafely((int)tipsPosition.X / 16, (int)tipsPosition.Y / 16);
 
@@ -261,11 +279,11 @@ namespace StarlightRiver.Content.Abilities.Faewhip
 			if (!Active || !CustomHooks.PlayerTarget.canUseTarget)
 				return;
 
-			if (trail is null)
-				trail = new Trail(Main.graphics.GraphicsDevice, 100, new TriangularTip(4), n => 10 + n * 0, n => new Color(255, 255, 150) * (endRooted ? Math.Min(n.X * 5f, 1) : (float)Math.Sin(n.X * 3.14f)));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.graphics.GraphicsDevice, 100, new NoTip(), n => 10 + n * 0, n => new Color(255, 255, 150) * (endRooted ? Math.Min(n.X * 5f, 1) : (float)Math.Sin(n.X * 3.14f)));
 
-			if (glowTrail is null)
-				glowTrail = new Trail(Main.graphics.GraphicsDevice, 100, new TriangularTip(4), n => 18 + n * 0, n => new Color(255, 150, 50) * 0.1f * (endRooted ? Math.Min(n.X * 5f, 1) : (float)Math.Sin(n.X * 3.14f)));
+			if (glowTrail is null || glowTrail.IsDisposed)
+				glowTrail = new Trail(Main.graphics.GraphicsDevice, 100, new NoTip(), n => 18 + n * 0, n => new Color(255, 150, 50) * 0.1f * (endRooted ? Math.Min(n.X * 5f, 1) : (float)Math.Sin(n.X * 3.14f)));
 
 			trail.Positions = trailPoints;
 			glowTrail.Positions = trailPoints;
@@ -276,18 +294,17 @@ namespace StarlightRiver.Content.Abilities.Faewhip
 				trailPoints[k] = pos;
 			}
 
-			if (effect is null)
-				effect = Filters.Scene["WhipAbility"].GetShader().Shader;
+			effect ??= Filters.Scene["WhipAbility"].GetShader().Shader;
 
 			if (startPoint != Vector2.Zero)
 			{
 				spriteBatch.End();
 
-				Texture2D tex0 = Request<Texture2D>("StarlightRiver/Assets/EnergyTrail", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
-				Texture2D tex1 = Request<Texture2D>("StarlightRiver/Assets/GlowTrail", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+				Texture2D tex0 = Assets.EnergyTrail.Value;
+				Texture2D tex1 = Assets.GlowTrail.Value;
 
 				var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-				Matrix view = Main.GameViewMatrix.ZoomMatrix;
+				Matrix view = Main.GameViewMatrix.TransformationMatrix;
 				var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 				effect.Parameters["time"].SetValue(Main.GameUpdateCount * -0.025f);
@@ -301,7 +318,7 @@ namespace StarlightRiver.Content.Abilities.Faewhip
 
 				glowTrail?.Render(effect);
 
-				spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+				spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 			}
 
 			if (startPoint == Vector2.Zero)
@@ -318,16 +335,16 @@ namespace StarlightRiver.Content.Abilities.Faewhip
 			if (attached)
 			{
 				spriteBatch.End();
-				spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+				spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
-				Texture2D endTex = Request<Texture2D>("StarlightRiver/Assets/Abilities/" + (endRooted ? "WhipEndRoot" : "WhipEndGrab")).Value;
-				Texture2D endGlow = Request<Texture2D>("StarlightRiver/Assets/Keys/GlowSoft").Value;
+				Texture2D endTex = endRooted ? Assets.Abilities.WhipEndRoot.Value : Assets.Abilities.WhipEndGrab.Value;
+				Texture2D endGlow = Assets.Keys.GlowSoft.Value;
 
 				spriteBatch.Draw(endTex, tipsPosition - Main.screenPosition, null, new Color(255, 190, 100), Main.GameUpdateCount * 0.1f, endTex.Size() / 2, endScale * 0.75f, 0, 0);
 				spriteBatch.Draw(endGlow, tipsPosition - Main.screenPosition, null, new Color(255, 190, 100), 0, endGlow.Size() / 2, endScale, 0, 0);
 
 				spriteBatch.End();
-				spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+				spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 			}
 		}
 

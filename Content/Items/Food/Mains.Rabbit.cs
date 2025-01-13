@@ -5,11 +5,13 @@ namespace StarlightRiver.Content.Items.Food
 {
 	internal class Rabbit : Ingredient
 	{
-		public Rabbit() : base("+5% melee damage", 600, IngredientType.Main) { }
+		public Rabbit() : base("+5% melee damage", 3600 * 3, IngredientType.Main) { }
 
 		public override void SafeSetDefaults()
 		{
 			Item.rare = ItemRarityID.White;
+
+			Item.value = Item.sellPrice(silver: 10);
 		}
 
 		public override void Load()

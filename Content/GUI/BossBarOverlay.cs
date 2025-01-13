@@ -11,7 +11,7 @@ namespace StarlightRiver.Content.GUI
 
 		public static NPC tracked;
 		public static string text;
-		public static Texture2D texture = Request<Texture2D>(AssetDirectory.GUI + "BossBarFrame", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+		public static Texture2D texture = Request<Texture2D>(AssetDirectory.GUI + "BossBarFrame", AssetRequestMode.ImmediateLoad).Value;
 		public static Color glowColor = Color.Transparent;
 
 		public static bool? forceInvulnerabilityVisuals = null;
@@ -36,7 +36,7 @@ namespace StarlightRiver.Content.GUI
 			Append(bar);
 		}
 
-		public override void Update(GameTime gameTime)
+		public override void SafeUpdate(GameTime gameTime)
 		{
 			Recalculate();
 
@@ -60,11 +60,15 @@ namespace StarlightRiver.Content.GUI
 		}
 	}
 
-	public class BarOverlay : UIElement
+	public class BarOverlay : SmartUIElement
 	{
 		public override void Draw(SpriteBatch spriteBatch)
 		{
 			NPC NPC = BossBarOverlay.tracked;
+
+			if (NPC is null)
+				return;
+
 			Vector2 pos = GetDimensions().ToRectangle().TopLeft() + new Vector2(0, 1);
 			var off = new Vector2(30, 12);
 			bool shouldDrawChains = BossBarOverlay.forceInvulnerabilityVisuals != false && (NPC.dontTakeDamage || NPC.immortal) || BossBarOverlay.forceInvulnerabilityVisuals == true;
@@ -76,34 +80,34 @@ namespace StarlightRiver.Content.GUI
 				return;
 			}
 
-			Texture2D texGlow = Request<Texture2D>(AssetDirectory.GUI + "BossbarGlow").Value;
+			Texture2D texGlow = Assets.GUI.BossbarGlow.Value;
 
 			int progress = (int)(BossBarOverlay.tracked?.life / (float)BossBarOverlay.tracked?.lifeMax * 456);
 
 			if (shouldDrawChains)
 			{
-				Texture2D texFill = Request<Texture2D>(AssetDirectory.GUI + "BossbarFillImmune").Value;
-				Texture2D texEdge = Request<Texture2D>(AssetDirectory.GUI + "BossbarEdgeImmune").Value;
+				Texture2D texFill = Assets.GUI.BossbarFillImmune.Value;
+				Texture2D texEdge = Assets.GUI.BossbarEdgeImmune.Value;
 
 				spriteBatch.Draw(texFill, new Rectangle((int)(pos.X + off.X), (int)(pos.Y + off.Y) + 2, progress, texFill.Height - 4), Color.White);
 				spriteBatch.Draw(texEdge, pos + off + Vector2.UnitX * progress, Color.White);
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.UIScaleMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, default, default, Main.UIScaleMatrix);
 
 			spriteBatch.Draw(texGlow, pos + off, BossBarOverlay.glowColor * 0.5f);
 			spriteBatch.Draw(texGlow, new Rectangle((int)(pos.X + off.X), (int)(pos.Y + off.Y), progress, 22), new Rectangle(0, 0, progress, 22), BossBarOverlay.glowColor);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.UIScaleMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, default, default, Main.UIScaleMatrix);
 
 			Utils.DrawBorderString(spriteBatch, NPC.FullName + BossBarOverlay.text + ": " + NPC.life + "/" + NPC.lifeMax, pos + new Vector2(516 / 2, -20), Color.White, 1, 0.5f, 0);
 
 			//spriteBatch.Draw(BossBarOverlay.Texture, pos, Color.White);           
 
 			if (shouldDrawChains)
-				spriteBatch.Draw(Request<Texture2D>(AssetDirectory.GUI + "BossbarChains").Value, pos, Color.White);
+				spriteBatch.Draw(Assets.GUI.BossbarChains.Value, pos, Color.White);
 		}
 	}
 }

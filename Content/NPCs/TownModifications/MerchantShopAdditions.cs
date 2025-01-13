@@ -6,21 +6,30 @@ namespace StarlightRiver.Content.NPCs.TownModifications
 {
 	class MerchantShopAdditions : GlobalNPC
 	{
-		public override void SetupShop(int type, Chest shop, ref int nextSlot)
+		public override bool AppliesToEntity(NPC entity, bool lateInstantiation)
 		{
-			if (type == NPCID.Merchant)
+			return entity.type == NPCID.Merchant;
+		}
+
+		public override void ModifyShop(NPCShop shop)
+		{
+			if (shop.NpcType == NPCID.Merchant)
 			{
-				shop.item[nextSlot].SetDefaults(ModContent.ItemType<ArmorBag>());
-				nextSlot++;
+				shop.Add(new NPCShop.Entry(ItemID.Flare, Items.Breacher.FlareBreacher.getMerchantFlareCondition()));
+				shop.Add(new NPCShop.Entry(ItemID.BlueFlare, Items.Breacher.FlareBreacher.getMerchantFlareCondition()));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<ArmorBag>()));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<ChefBag>()));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<TableSalt>()));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<BlackPepper>()));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<Sugar>()));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<Flour>(), Condition.DownedEyeOfCthulhu));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<Milk>(), Condition.DownedEaterOfWorlds));
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<Dressing>()));
+			}
 
-				shop.item[nextSlot].SetDefaults(ModContent.ItemType<ChefBag>());
-				nextSlot++;
-
-				shop.item[nextSlot].SetDefaults(ModContent.ItemType<TableSalt>());
-				nextSlot++;
-
-				shop.item[nextSlot].SetDefaults(ModContent.ItemType<BlackPepper>());
-				nextSlot++;
+			if (shop.NpcType == NPCID.Dryad)
+			{
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<Cashews>()));
 			}
 		}
 	}

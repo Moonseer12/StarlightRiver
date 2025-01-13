@@ -1,3 +1,4 @@
+using StarlightRiver.Core.Systems;
 using System;
 using Terraria.DataStructures;
 using Terraria.ID;
@@ -11,12 +12,17 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 
 		public override void Load()
 		{
-			On.Terraria.Projectile.AI_007_GrapplingHooks_CanTileBeLatchedOnTo += StopGrappling;
+			On_Projectile.AI_007_GrapplingHooks_CanTileBeLatchedOnTo += StopGrappling;
 		}
 
 		public override void SetStaticDefaults()
 		{
 			QuickBlock.QuickSet(this, int.MaxValue, DustID.Ice, SoundID.Tink, new Color(81, 192, 240), ItemType<AuroraBrickItem>());
+		}
+
+		public override bool CanExplode(int i, int j)
+		{
+			return false;
 		}
 
 		public override void DrawEffects(int i, int j, SpriteBatch spriteBatch, ref TileDrawInfo drawData)
@@ -31,15 +37,17 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 			drawData.colorTint = color.MultiplyRGB(Color.White * mult);
 		}
 
-		private bool StopGrappling(On.Terraria.Projectile.orig_AI_007_GrapplingHooks_CanTileBeLatchedOnTo orig, Projectile self, Tile theTile)
+		private bool StopGrappling(On_Projectile.orig_AI_007_GrapplingHooks_CanTileBeLatchedOnTo orig, Projectile self, int x, int y)
 		{
+			Tile theTile = Framing.GetTileSafely(x, y);
+
 			if (theTile.TileType == TileType<AuroraBrick>())
 			{
 				self.tileCollide = true;
 				return false;
 			}
 
-			return orig(self, theTile);
+			return orig(self, x, y);
 		}
 	}
 
@@ -58,10 +66,11 @@ namespace StarlightRiver.Content.Tiles.Permafrost
 		public AuroraBrickItem() : base("Aurora Brick", "Oooh... Preeetttyyy", "AuroraBrick", ItemRarityID.White) { }
 	}
 
+	[SLRDebug]
 	class AuroraBrickDoorItem : QuickTileItem
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public AuroraBrickDoorItem() : base("Debug Brick Placer", "", "AuroraBrickDoor", ItemRarityID.White) { }
+		public AuroraBrickDoorItem() : base("{{Debug}} Brick Placer", "", "AuroraBrickDoor", ItemRarityID.White) { }
 	}
 }

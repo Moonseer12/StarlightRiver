@@ -1,11 +1,17 @@
-﻿using Terraria.ID;
+﻿using System.IO;
+using Terraria.DataStructures;
+using Terraria.ID;
 
 namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 {
-	class SawbladeSmall : ModProjectile
+	public class SawbladeSmall : EvasionProjectile
 	{
+		public static int timeLeftToAssign;
+
 		public Vector2 storedVelocity = Vector2.Zero;
 		public EvasionShrineDummy parent;
+
+		public float timer = 0;
 
 		public float Alpha => 1 - Projectile.alpha / 255f;
 
@@ -28,16 +34,21 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			Projectile.alpha = 255;
 		}
 
+		public override void OnSpawn(IEntitySource source)
+		{
+			Projectile.timeLeft = timeLeftToAssign;
+		}
+
 		public override void AI()
 		{
 			if (storedVelocity == Vector2.Zero)
 				storedVelocity = Projectile.velocity;
 
-			Projectile.ai[0]++;
+			timer++;
 
-			if (Projectile.ai[0] <= 20)
+			if (timer <= 20)
 			{
-				Projectile.velocity = Vector2.SmoothStep(Vector2.Zero, storedVelocity, Projectile.ai[0] / 20f);
+				Projectile.velocity = Vector2.SmoothStep(Vector2.Zero, storedVelocity, timer / 20f);
 				Projectile.alpha -= 255 / 20;
 			}
 			else if (Projectile.timeLeft <= 20)
@@ -53,14 +64,6 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			Projectile.rotation -= 0.1f;
 		}
 
-		public override void OnHitPlayer(Player target, int damage, bool crit)
-		{
-			parent.lives--;
-
-			if (Main.rand.NextBool(10000))
-				Main.NewText("Skill issue.");
-		}
-
 		public override void PostDraw(Color lightColor)
 		{
 			Texture2D glowTex = ModContent.Request<Texture2D>(Texture + "Glow").Value;
@@ -72,10 +75,10 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			SpriteBatch spriteBatch = Main.spriteBatch;
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
-			Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Keys/GlowSoft").Value;
-			Texture2D texStar = ModContent.Request<Texture2D>("StarlightRiver/Assets/GUI/ItemGlow").Value;
+			Texture2D tex = Assets.Keys.GlowSoft.Value;
+			Texture2D texStar = Assets.GUI.ItemGlow.Value;
 
 			spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition, null, new Color(100, 0, 255) * Alpha, Projectile.rotation, tex.Size() / 2, 1.8f, 0, 0);
 
@@ -92,9 +95,19 @@ namespace StarlightRiver.Content.Tiles.Underground.EvasionShrineBullets
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			return true;
+		}
+
+		public override void SendExtraAI(BinaryWriter writer)
+		{
+			writer.Write(Projectile.timeLeft);
+		}
+
+		public override void ReceiveExtraAI(BinaryReader reader)
+		{
+			Projectile.timeLeft = reader.ReadInt32();
 		}
 	}
 }

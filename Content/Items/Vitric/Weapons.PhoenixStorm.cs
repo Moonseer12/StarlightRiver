@@ -19,7 +19,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Phoenix Storm");
-			Tooltip.SetDefault("Summons a storm of phoenixes that periodically swoops in on enemies");
+			Tooltip.SetDefault("Summons a storm of phoenixes that periodically swoop in on enemies");
 			ItemID.Sets.GamepadWholeScreenUseRange[Item.type] = true;
 			ItemID.Sets.LockOnIgnoresCollision[Item.type] = true;
 		}
@@ -92,10 +92,10 @@ namespace StarlightRiver.Content.Items.Vitric
 		private bool swooping = false;
 		private float swoopSpeed = 0.1f;
 
-		private List<NPC> alreadyHit = new();
+		private readonly List<NPC> alreadyHit = new();
 
-		private List<Vector2> oldPos = new();
-		private List<float> oldRot = new();
+		private readonly List<Vector2> oldPos = new();
+		private readonly List<float> oldRot = new();
 
 		private List<Vector2> swoopTrajectory = new();
 
@@ -246,7 +246,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			return base.CanHitNPC(target);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			for (int i = 0; i < 12; i++)
 			{
@@ -290,7 +290,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			{
 				Main.spriteBatch.End();
 				DrawTrail();
-				Main.spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				Main.spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 				for (int i = 0; i < oldPos.Count(); i++)
 				{
 					float opacity = i / (float)oldPos.Count();
@@ -299,7 +299,7 @@ namespace StarlightRiver.Content.Items.Vitric
 				}
 
 				Main.spriteBatch.End();
-				Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 			}
 
 			Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition, frame, lightColor, rotation, frame.Size() / 2, Projectile.scale, spriteEffects, 0f);
@@ -327,7 +327,8 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 10, new TriangularTip(4), factor => 13 * factor, factor => Color.OrangeRed);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 10, new NoTip(), factor => 13 * factor, factor => Color.OrangeRed);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -354,13 +355,13 @@ namespace StarlightRiver.Content.Items.Vitric
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount);
 			effect.Parameters["repeats"].SetValue(2f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(Request<Texture2D>("StarlightRiver/Assets/FireTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.FireTrail.Value);
 
 			trail?.Render(effect);
 		}

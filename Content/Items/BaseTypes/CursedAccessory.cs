@@ -1,8 +1,11 @@
-﻿using System;
+﻿using StarlightRiver.Content.Prefixes.Accessory.Cursed;
+using System;
+using System.Collections.Generic;
 using Terraria.Audio;
 using Terraria.GameContent;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
+using Terraria.Utilities;
 
 namespace StarlightRiver.Content.Items.BaseTypes
 {
@@ -10,7 +13,6 @@ namespace StarlightRiver.Content.Items.BaseTypes
 	{
 		public static readonly Color CurseColor = new(25, 17, 49);
 
-		private readonly Texture2D Glow = null;
 		private static float tooltipProgress;
 
 		public Vector2 drawpos = Vector2.Zero;
@@ -25,20 +27,17 @@ namespace StarlightRiver.Content.Items.BaseTypes
 
 		public static void LoadSystem()
 		{
-			CursedSystem = new ParticleSystem("StarlightRiver/Assets/GUI/WhiteCircle", UpdateCursed);
-			ShardsSystem = new ParticleSystem("StarlightRiver/Assets/GUI/charm", UpdateShards);
+			CursedSystem = new ParticleSystem("StarlightRiver/Assets/Keys/GlowAlpha", UpdateCursed, ParticleSystem.AnchorOptions.UI);
+			ShardsSystem = new ParticleSystem("StarlightRiver/Assets/GUI/charm", UpdateShards, ParticleSystem.AnchorOptions.UI);
 		}
 
 		public static void UnloadSystem()
 		{
-			CursedSystem = null;
-			ShardsSystem = null;
+			CursedSystem ??= null;
+			ShardsSystem ??= null;
 		}
 
-		protected CursedAccessory(Texture2D glow) : base("Unnamed Cursed Accessory", "You forgot to give this a display name dingus!")
-		{
-			Glow = glow;
-		}
+		protected CursedAccessory() : base("Unnamed Cursed Accessory", "You forgot to give this a display name dingus!") { }
 
 		private static void UpdateShardsBody(Particle particle)
 		{
@@ -54,10 +53,17 @@ namespace StarlightRiver.Content.Items.BaseTypes
 			if (particle.Rotation == 1)
 				particle.Velocity *= 0.92f;
 
+			particle.Color.A = 0;
 			particle.Alpha = particle.Timer * 0.053f - 0.00088f * (float)Math.Pow(particle.Timer, 2);
 			particle.Scale *= 0.97f;
 			particle.Position += particle.Velocity;
 			particle.Timer--;
+		}
+
+		public override int ChoosePrefix(UnifiedRandom rand)
+		{
+			System.Collections.Generic.List<int> pool = CursedPrefixPool.GetCursedPrefixes();
+			return pool[rand.Next(pool.Count)];
 		}
 
 		public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle frame, Color drawColor, Color ItemColor, Vector2 origin, float scale)
@@ -85,15 +91,12 @@ namespace StarlightRiver.Content.Items.BaseTypes
 
 		public override void PostDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle frame, Color drawColor, Color ItemColor, Vector2 origin, float scale)
 		{
-			Color color = Color.White * (float)Math.Sin(StarlightWorld.visualTimer);
-			spriteBatch.Draw(Glow, position, new Rectangle(0, 0, 32, 32), color, 0, origin, scale, SpriteEffects.None, 0);
-
-			Vector2 pos = position + frame.Size() / 4 - Vector2.One + (Vector2.One * Main.rand.Next(12)).RotatedBy(Main.rand.NextFloat(0, 6.28f)) + new Vector2(0, 10);
+			Vector2 pos = position - origin * scale + new Vector2(0, 10) + Main.rand.NextVector2Circular(16, 16) + frame.Size() / 2f * scale;
 
 			if (!GoingBoom)
 				CursedSystem.AddParticle(new Particle(pos, new Vector2(0, -0.4f), 0, 0.5f, CurseColor, 60, Vector2.Zero));
 
-			drawpos = position + frame.Size() / 4;
+			drawpos = pos;
 
 			if (GoingBoom && boomTimer < 60)
 			{
@@ -102,15 +105,16 @@ namespace StarlightRiver.Content.Items.BaseTypes
 			}
 		}
 
-		public override bool CanEquipAccessory(Player Player, int slot, bool modded)
+		public override void OnEquip(Player player, Item item)
 		{
-			Terraria.Audio.SoundEngine.PlaySound(SoundID.NPCHit55);
-			Terraria.Audio.SoundEngine.PlaySound(SoundID.Item123);
+			if (Main.playerInventory)
+			{
+				SoundEngine.PlaySound(SoundID.NPCHit55);
+				SoundEngine.PlaySound(SoundID.Item123);
 
-			for (int k = 0; k <= 50; k++)
-				CursedSystem.AddParticle(new Particle(drawpos, Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(0.75f), 0, 1, CurseColor, 60, Vector2.Zero));
-
-			return true;
+				for (int k = 0; k <= 50; k++)
+					CursedSystem.AddParticle(new Particle(drawpos, Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(0.75f), 0, 1, CurseColor, 60, Vector2.Zero));
+			}
 		}
 
 		public override void UpdateInventory(Player Player)
@@ -177,7 +181,7 @@ namespace StarlightRiver.Content.Items.BaseTypes
 			if (line.Mod == "Terraria" && line.Name == "ItemName")
 			{
 				Effect effect = Filters.Scene["CursedTooltip"].GetShader().Shader;
-				Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Keys/Glow").Value;
+				Texture2D tex = Assets.Keys.Glow.Value;
 
 				if (effect is null)
 					return true;
@@ -197,7 +201,7 @@ namespace StarlightRiver.Content.Items.BaseTypes
 				Utils.DrawBorderString(Main.spriteBatch, line.Text, new Vector2(line.X, line.Y), Color.Lerp(Color.White, new Color(180, 100, 225), tooltipProgress), 1.1f);
 
 				Main.spriteBatch.End();
-				Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, default, Main.UIScaleMatrix);
+				Main.spriteBatch.Begin(default, default, default, default, default, default, Main.UIScaleMatrix);
 
 				if (tooltipProgress < 1)
 					tooltipProgress += 0.05f;
@@ -207,5 +211,13 @@ namespace StarlightRiver.Content.Items.BaseTypes
 
 			return base.PreDrawTooltipLine(line, ref yOffset);
 		}
+
+		public sealed override void ModifyTooltips(List<TooltipLine> tooltips)
+		{
+			SafeModifyTooltips(tooltips);
+			tooltips.Add(new(Mod, "CursedAccessoryLine", "{{Cursed}} item"));
+		}
+
+		public virtual void SafeModifyTooltips(List<TooltipLine> tooltips) { }
 	}
 }

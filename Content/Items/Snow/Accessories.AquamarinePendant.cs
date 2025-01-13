@@ -12,12 +12,15 @@ namespace StarlightRiver.Content.Items.Snow
 
 		public override string Texture => AssetDirectory.SnowItem + Name;
 
-		public AquamarinePendant() : base("Aquamarine Pendant", "+15 Barrier \nLosing all of your barrier releases ice shards") { }
+		public AquamarinePendant() : base("Aquamarine Pendant", "+15 {{Barrier}} \nLosing all of your {{barrier}} releases ice shards") { }
 
 		public override void UpdateAccessory(Player player, bool hideVisual)
 		{
 			BarrierPlayer bPlayer = player.GetModPlayer<BarrierPlayer>();
 			bPlayer.maxBarrier += 15;
+
+			if (Main.myPlayer != player.whoAmI)
+				return; //other clients shouldn't fire extra shards
 
 			if (bPlayer.barrier > 0)
 			{

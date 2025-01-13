@@ -13,7 +13,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Cogshot");
-			Tooltip.SetDefault("Bounces up to five times\nHalves damage on hit");
+			Tooltip.SetDefault("Bounces between enemies up to five times\nHalves damage with each bounce");
 		}
 
 		public override void SetDefaults()
@@ -23,7 +23,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			Item.value = Item.sellPrice(copper: 5);
 			Item.rare = ItemRarityID.Green;
 
-			Item.maxStack = 999;
+			Item.maxStack = 9999;
 			Item.damage = 10;
 			Item.knockBack = 1f;
 
@@ -33,6 +33,15 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			Item.DamageType = DamageClass.Ranged;
 			Item.shoot = ModContent.ProjectileType<CogAmmoProjectile>();
 			Item.shootSpeed = 4.5f;
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe(250);
+			recipe.AddIngredient(ItemID.MusketBall, 250);
+			recipe.AddIngredient<AncientGear>();
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -79,7 +88,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 				Projectile.velocity.Y = 16f;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			//for some reason the BuzzSpark dust spawns super offset
 			Vector2 dustPos = Projectile.Center + new Vector2(0f, 40f);

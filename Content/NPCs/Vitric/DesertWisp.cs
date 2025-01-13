@@ -37,7 +37,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			bestiaryEntry.Info.AddRange(new IBestiaryInfoElement[]
 			{
 				Bestiary.SLRSpawnConditions.VitricDesert,
-				new FlavorTextBestiaryInfoElement("[PH] Entry")
+				new FlavorTextBestiaryInfoElement("A tangle of Starlight energy that can be considered alive, if only barely.")
 			});
 		}
 
@@ -106,7 +106,7 @@ namespace StarlightRiver.Content.NPCs.Vitric
 
 		public override void PostDraw(SpriteBatch spriteBatch, Vector2 screenPos, Color drawColor)
 		{
-			if (NPC.oldPos[119] == Vector2.Zero || trail is null)
+			if (NPC.oldPos[119] == Vector2.Zero || trail is null || trail.IsDisposed)
 				return;
 
 			trail.Positions = NPC.oldPos;
@@ -114,11 +114,11 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			Effect effect = Terraria.Graphics.Effects.Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-screenPos.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 			effect.Parameters["time"].SetValue(-Main.GameUpdateCount / 100f);
 			effect.Parameters["repeats"].SetValue(1);
 

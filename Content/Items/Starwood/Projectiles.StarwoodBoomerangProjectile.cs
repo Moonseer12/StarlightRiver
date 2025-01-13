@@ -9,7 +9,7 @@ namespace StarlightRiver.Content.Items.Starwood
 	{
 		private const int CHARGE_TIME = 50; //how long it takes to charge up
 
-		private float chargeMult; //a multiplier used during charge up, used both in ai and for drawing (goes from 0 to 1)
+		private float chargeMult; //multiplier used during charge up, used both in ai and for drawing (goes from 0 to 1)
 
 		//These stats get scaled when empowered
 		private int ScaleMult = 2;
@@ -68,7 +68,9 @@ namespace StarlightRiver.Content.Items.Starwood
 				case 0://flying outward
 					if (empowered)
 					{
-						Projectile.velocity += Vector2.Normalize(Main.MouseWorld - Projectile.Center);
+						ControlsPlayer cPlayer = Main.player[Projectile.owner].GetModPlayer<ControlsPlayer>();
+						cPlayer.mouseListener = true;
+						Projectile.velocity += Vector2.Normalize(cPlayer.mouseWorld - Projectile.Center);
 
 						if (Projectile.velocity.Length() > 10)//swap this for shootspeed or something
 							Projectile.velocity = Vector2.Normalize(Projectile.velocity) * 10; //cap to max speed
@@ -79,7 +81,7 @@ namespace StarlightRiver.Content.Items.Starwood
 
 					break;
 
-				case 1://has hit something
+				case 1://has hit something or max distance
 					if (projOwner.controlUseItem || Projectile.ai[1] >= CHARGE_TIME - 5)
 					{
 						if (Projectile.ai[1] == 0)
@@ -159,32 +161,25 @@ namespace StarlightRiver.Content.Items.Starwood
 			}
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
 			if (Projectile.ai[0] == 1)
 			{
 				if (Projectile.ai[1] >= CHARGE_TIME - 3 && Projectile.ai[1] <= CHARGE_TIME + 3)
 				{
-					if (empowered)
-					{
-						damage *= ScaleMult;
-						knockback *= ScaleMult;
-					}
-					else
-					{
-						damage *= ScaleMult;
-						knockback *= ScaleMult;
-					}
+					modifiers.SourceDamage *= ScaleMult;
+					modifiers.Knockback *= ScaleMult;
+					modifiers.HitDirectionOverride = target.Center.X > Projectile.Center.X ? 1 : -1;
 				}
 				else
 				{
-					damage = ScaleMult;
-					knockback *= 0.1f;
+					modifiers.SourceDamage -= int.MaxValue;
+					modifiers.Knockback *= 0.1f;
 				}
 			}
 			else if (empowered)
 			{
-				damage += 3;
+				modifiers.SourceDamage *= 2f;
 			}
 		}
 
@@ -194,19 +189,22 @@ namespace StarlightRiver.Content.Items.Starwood
 			return false;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			NextPhase(0, true);
+			Main.player[Projectile.owner].TryGetModPlayer<StarlightPlayer>(out StarlightPlayer starlightPlayer);
+			starlightPlayer.SetHitPacketStatus(shouldRunProjMethods: true);
 		}
 
-		public override void OnHitPlayer(Player target, int damage, bool crit)
+		public override void OnHitPlayer(Player target, Player.HurtInfo info)
 		{
 			NextPhase(0, true);
+			Projectile.netUpdate = true;
 		}
 
-		private Texture2D GlowingTrail => Request<Texture2D>(AssetDirectory.StarwoodItem + "StarwoodBoomerangGlowTrail").Value;
-		private Texture2D GlowingTexture => Request<Texture2D>(AssetDirectory.StarwoodItem + "StarwoodBoomerangGlow").Value;
-		private Texture2D AuraTexture => Request<Texture2D>(AssetDirectory.StarwoodItem + "Glow").Value;
+		private Texture2D GlowingTrail => Assets.Items.Starwood.StarwoodBoomerangGlowTrail.Value;
+		private Texture2D GlowingTexture => Assets.Items.Starwood.StarwoodBoomerangGlow.Value;
+		private Texture2D AuraTexture => Assets.Items.Starwood.Glow.Value;
 
 		public override bool PreDraw(ref Color lightColor)
 		{
@@ -260,8 +258,8 @@ namespace StarlightRiver.Content.Items.Starwood
 				}
 			}
 
-			Texture2D tex2 = Request<Texture2D>(AssetDirectory.StarwoodItem + "Glow2").Value;//a
-			spriteBatch.Draw(tex2, Projectile.Center - Main.screenPosition, tex2.Frame(), new Color(255, 255, 200, 75) * (Projectile.ai[1] / CHARGE_TIME), 0, tex2.Size() * 0.5f, (-chargeMult + 1) * 1f, 0, 0);
+			Texture2D tex2 = Assets.Items.Starwood.Glow2.Value;//a
+			spriteBatch.Draw(tex2, Projectile.Center - Main.screenPosition, tex2.Frame(), new Color(255, 255, 200, 75) * (Projectile.ai[1] / CHARGE_TIME), 0, tex2.Size() * 0.5f, (-chargeMult + 1) * 1.2f, 0, 0);
 		}
 
 		public override void PostDraw(Color lightColor)

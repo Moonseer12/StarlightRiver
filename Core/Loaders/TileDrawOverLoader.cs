@@ -16,30 +16,24 @@ namespace StarlightRiver.Core.Loaders
 			if (Main.dedServ)
 				return;
 
-			On.Terraria.Main.DrawProjectiles += Main_DrawProjectiles;
-			On.Terraria.Main.Update += Main_Update;
+			On_Main.DrawProjectiles += Main_DrawProjectiles;
+
+			projTarget = new(DrawProjTarget, () => Main.projectile.Any(n => n.ModProjectile is IDrawOverTiles), 1);
+			tileTarget = new(DrawTileTarget, () => Main.projectile.Any(n => n.ModProjectile is IDrawOverTiles), 1);
 		}
 
 		public void Unload()
 		{
-			On.Terraria.Main.DrawProjectiles -= Main_DrawProjectiles;
-			On.Terraria.Main.Update -= Main_Update;
+			On_Main.DrawProjectiles -= Main_DrawProjectiles;
 
-			projTarget = null;
+			projTarget ??= null;
+			tileTarget ??= null;
 		}
 
-		private void Main_DrawProjectiles(On.Terraria.Main.orig_DrawProjectiles orig, Main self)
+		private void Main_DrawProjectiles(On_Main.orig_DrawProjectiles orig, Main self)
 		{
 			orig(self);
 			DrawTargets();
-		}
-
-		private static void Main_Update(On.Terraria.Main.orig_Update orig, Main self, GameTime gameTime)
-		{
-			if (StarlightRiver.Instance != null)
-				StarlightRiver.Instance.CheckScreenSize();
-
-			orig(self, gameTime);
 		}
 
 		private static void DrawProjTarget(SpriteBatch spriteBatch)
@@ -70,7 +64,7 @@ namespace StarlightRiver.Core.Loaders
 
 		private void DrawTargets()
 		{
-			if (tileTarget == null || projTarget == null)
+			if (tileTarget is null || projTarget is null)
 				return;
 
 			Effect effect = Filters.Scene["OverTileShader"].GetShader().Shader;
@@ -80,7 +74,7 @@ namespace StarlightRiver.Core.Loaders
 
 			effect.Parameters["TileTarget"].SetValue(tileTarget.RenderTarget);
 
-			Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.Default, RasterizerState.CullNone, null, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.Default, RasterizerState.CullNone, null, Main.GameViewMatrix.TransformationMatrix);
 
 			effect.CurrentTechnique.Passes[0].Apply();
 			Main.spriteBatch.Draw(projTarget.RenderTarget, new Rectangle(0, 0, Main.screenWidth, Main.screenHeight), Color.White);

@@ -9,31 +9,39 @@ namespace StarlightRiver.Content.Items.Forest
 	{
 		public override string Texture => AssetDirectory.ForestItem + Name;
 
-		public AcornSprout() : base("Acorn Sprout", "Killing summon tagged enemies summons acorns to fall on nearby enemies") { }
+		public AcornSprout() : base("Acorn Sprout", "Killing summon tagged enemies creates acorns to fall on nearby enemies") { }
 
 		public override void SafeSetDefaults()
 		{
 			Item.rare = ItemRarityID.Blue;
+
+			Item.value = Item.sellPrice(silver: 25);
 		}
 
 		public override void Load()
 		{
-			StarlightPlayer.ModifyHitNPCWithProjEvent += SpawnAcorn;
+			StarlightPlayer.OnHitNPCEvent += SpawnAcornItem;
+			StarlightPlayer.OnHitNPCWithProjEvent += SpawnAcornProjectile;
 		}
 
-		public override void Unload()
+		private void SpawnAcornItem(Player player, Item Item, NPC target, NPC.HitInfo hit, int damageDone)
 		{
-			StarlightPlayer.ModifyHitNPCWithProjEvent -= SpawnAcorn;
+			AcornCheck(player, target, damageDone);
 		}
 
-		private void SpawnAcorn(Player player, Projectile proj, NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		private void SpawnAcornProjectile(Player player, Projectile proj, NPC target, NPC.HitInfo info, int damageDone)
+		{
+			AcornCheck(player, target, damageDone);
+		}
+
+		private void AcornCheck(Player player, NPC target, int damageDone)
 		{
 			if (!Equipped(player))
 				return;
 
-			if (target.life - damage <= 0)
+			if (target.life - damageDone <= 0)
 			{
-				if (proj.minion && proj.owner == player.whoAmI && player.MinionAttackTargetNPC == target.whoAmI)
+				if (player.MinionAttackTargetNPC == target.whoAmI)
 				{
 					foreach (NPC NPC in Main.npc.Where(n => n.active && n.chaseable && Vector2.DistanceSquared(n.Center, target.Center) < Math.Pow(240, 2)))
 					{

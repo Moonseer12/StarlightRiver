@@ -2,6 +2,7 @@
 using StarlightRiver.Content.Items.Utility;
 using System.Linq;
 using Terraria.DataStructures;
+using Terraria.Enums;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
@@ -13,13 +14,8 @@ namespace StarlightRiver.Content.Tiles.Crafting
 
 		public override void SetStaticDefaults()
 		{
-			this.QuickSetFurniture(6, 4, DustID.t_LivingWood, SoundID.Dig, true, new Color(151, 107, 75), false, false, "Cooking Station");
+			this.QuickSetFurniture(5, 4, DustID.t_LivingWood, SoundID.Dig, true, new Color(151, 107, 75), false, false, "Cooking Station", new AnchorData(AnchorType.SolidTile, 6, 0));
 			Main.tileLighted[Type] = true;
-		}
-
-		public override void KillMultiTile(int i, int j, int frameX, int frameY)
-		{
-			Item.NewItem(new EntitySource_TileBreak(i, j), new Vector2(i, j) * 16, ItemType<CookStationItem>());
 		}
 
 		public override void NumDust(int i, int j, bool fail, ref int num)
@@ -44,6 +40,7 @@ namespace StarlightRiver.Content.Tiles.Crafting
 
 			if (!CookingUI.visible)
 			{
+				CookingUI.prepStationPos = new Vector2(i * 16, j * 16);
 				CookingUI.visible = true;
 				Terraria.Audio.SoundEngine.PlaySound(SoundID.MenuOpen);
 
@@ -68,13 +65,19 @@ namespace StarlightRiver.Content.Tiles.Crafting
 
 	public class CookStationItem : QuickTileItem
 	{
-		public CookStationItem() : base("Prep Station", "Right click to prepare meals", "CookStation", 0, AssetDirectory.CraftingTile) { }
+		public CookStationItem() : base("Prep Station", "<right> to prepare meals", "CookStation", 0, AssetDirectory.CraftingTile) { }
 
 		public override void AddRecipes()
 		{
 			CreateRecipe()
 			.AddIngredient(ItemID.Wood, 20)
-			.AddIngredient(RecipeGroupID.IronBar, 5)
+			.AddIngredient(ItemID.IronBar, 5)
+			.AddTile(TileID.WorkBenches)
+			.Register();
+
+			CreateRecipe()
+			.AddIngredient(ItemID.Wood, 20)
+			.AddIngredient(ItemID.LeadBar, 5)
 			.AddTile(TileID.WorkBenches)
 			.Register();
 		}

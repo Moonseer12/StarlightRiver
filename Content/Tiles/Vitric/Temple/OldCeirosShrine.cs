@@ -1,4 +1,6 @@
-﻿using StarlightRiver.Core.Systems.DummyTileSystem;
+﻿using StarlightRiver.Content.Biomes;
+using StarlightRiver.Core.Systems;
+using StarlightRiver.Core.Systems.DummyTileSystem;
 using System;
 using Terraria.DataStructures;
 using Terraria.Enums;
@@ -11,7 +13,7 @@ namespace StarlightRiver.Content.Tiles.Vitric.Temple
 {
 	class OldCeirosShrine : DummyTile
 	{
-		public override int DummyType => ProjectileType<OldCeirosShrineDummy>();
+		public override int DummyType => DummySystem.DummyType<OldCeirosShrineDummy>();
 
 		public override string Texture => AssetDirectory.VitricTile + Name;
 
@@ -25,7 +27,8 @@ namespace StarlightRiver.Content.Tiles.Vitric.Temple
 
 		public override void ModifyLight(int i, int j, ref float r, ref float g, ref float b)
 		{
-			(r, g, b) = (0.8f, 0.6f, 0.4f);
+			if (Main.LocalPlayer.InModBiome<VitricTempleBiome>())
+				(r, g, b) = (0.8f, 0.6f, 0.4f);
 		}
 
 		public override bool SpawnConditions(int i, int j)
@@ -49,6 +52,23 @@ namespace StarlightRiver.Content.Tiles.Vitric.Temple
 				return true;
 			}
 
+			Tile tile2 = Framing.GetTileSafely(i, j);
+			while (tile2.TileFrameX >= 16)
+			{
+				i--;
+				tile2 = Framing.GetTileSafely(i, j);
+			}
+
+			while (tile2.TileFrameY > 0)
+			{
+				j--;
+				tile2 = Framing.GetTileSafely(i, j);
+			}
+
+			SoundPuzzle.SoundPuzzleHandler.lastTries.Add(tile2.TileFrameX);
+			Helpers.Helper.PlayPitched("GlassMiniboss/GlassBounce", 1f, -1f + tile2.TileFrameX * 0.5f, new Vector2(i, j) * 16);
+			(GetDummy<OldCeirosShrineDummy>(i, j) as OldCeirosShrineDummy).echoTimer = 30;
+
 			return false;
 		}
 
@@ -70,30 +90,46 @@ namespace StarlightRiver.Content.Tiles.Vitric.Temple
 
 	class OldCeirosShrineDummy : Dummy, IDrawAdditive
 	{
+		public int echoTimer = 0;
+
 		public OldCeirosShrineDummy() : base(TileType<OldCeirosShrine>(), 16, 16) { }
 
 		public override void Update()
 		{
+			if (!Main.LocalPlayer.InModBiome<VitricTempleBiome>())
+				return;
+
+			if (echoTimer > 0)
+				echoTimer--;
+
 			if (Main.rand.NextBool(20))
 			{
-				Vector2 pos = Projectile.position + Vector2.UnitX * Main.rand.NextFloat(64);
+				Vector2 pos = position + Vector2.UnitX * Main.rand.NextFloat(64);
 				Dust.NewDustPerfect(pos, DustType<Dusts.Aurora>(), Vector2.UnitY * Main.rand.NextFloat(-4, -1), 0, new Color(255, Main.rand.Next(150, 255), 50), Main.rand.NextFloat(0.5f, 1f));
 			}
 		}
 
 		public override void PostDraw(Color lightColor)
 		{
+			if (!Main.LocalPlayer.InModBiome<VitricTempleBiome>())
+				return;
+
 			Texture2D tex = Request<Texture2D>(AssetDirectory.VitricTile + "OldCeirosOrnament" + Parent.TileFrameX).Value;
 			float sin = (float)Math.Sin(Main.GameUpdateCount / 30f);
-			Vector2 pos = Projectile.position - Main.screenPosition + new Vector2(32, -32 + sin * 4);
+			Vector2 pos = position - Main.screenPosition + new Vector2(32, -32 + sin * 4);
 
 			Main.spriteBatch.Draw(tex, pos, null, Color.White, 0, tex.Size() / 2, 1, 0, 0);
+
+			Main.spriteBatch.Draw(tex, pos, null, Color.White * (echoTimer / 30f), 0, tex.Size() / 2, 1 + (2 - echoTimer / 30f * 2), 0, 0);
 		}
 
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
-			Texture2D texGlow = Request<Texture2D>(AssetDirectory.VitricBoss + "LongGlow").Value;
-			Vector2 pos = Projectile.position - Main.screenPosition + new Vector2(33, 10);
+			if (!Main.LocalPlayer.InModBiome<VitricTempleBiome>())
+				return;
+
+			Texture2D texGlow = Assets.Bosses.VitricBoss.LongGlow.Value;
+			Vector2 pos = position - Main.screenPosition + new Vector2(33, 10);
 
 			float sin = (float)Math.Sin(Main.GameUpdateCount / 18f);
 
@@ -102,8 +138,9 @@ namespace StarlightRiver.Content.Tiles.Vitric.Temple
 		}
 	}
 
+	[SLRDebug]
 	class OldCeirosShrineItem : QuickTileItem
 	{
-		public OldCeirosShrineItem() : base("Old Ceiros Shrine", "Debug Item", "OldCeirosShrine", 0) { }
+		public OldCeirosShrineItem() : base("Old Ceiros Shrine", "{{Debug}} Item", "OldCeirosShrine", 0) { }
 	}
 }

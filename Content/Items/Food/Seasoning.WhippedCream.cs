@@ -4,16 +4,17 @@ namespace StarlightRiver.Content.Items.Food
 {
 	internal class WhippedCream : Ingredient
 	{
-		public WhippedCream() : base("Food buffs are 20% less effective\n 10% increased movement speed", 300, IngredientType.Seasoning) { }
+		public WhippedCream() : base("10% increased movement speed\n-20% duration", 300, IngredientType.Seasoning, 0.8f) { }
 
 		public override void SafeSetDefaults()
 		{
 			Item.rare = ItemRarityID.White;
+
+			Item.value = Item.sellPrice(silver: 3);
 		}
 
 		public override void BuffEffects(Player Player, float multiplier)
 		{
-			Player.GetModPlayer<FoodBuffHandler>().Multiplier -= 0.2f;
 			Player.accRunSpeed += 0.5f;
 		}
 	}

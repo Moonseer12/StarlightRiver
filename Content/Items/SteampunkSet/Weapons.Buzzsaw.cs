@@ -1,4 +1,5 @@
 using StarlightRiver.Content.Dusts;
+using StarlightRiver.Content.Items.Misc;
 using StarlightRiver.Core.Systems.CameraSystem;
 using StarlightRiver.Helpers;
 using System;
@@ -48,14 +49,11 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 		public override void AddRecipes()
 		{
 			Recipe recipe = CreateRecipe();
-			recipe.AddIngredient(ItemID.DemoniteBar, 10);
-			recipe.AddIngredient(ModContent.ItemType<AncientGear>(), 8);
+			recipe.AddIngredient(ItemID.Diamond);
+			recipe.AddIngredient<Bladesaw>();
+			recipe.AddIngredient(ModContent.ItemType<AncientGear>(), 6);
 			recipe.AddTile(TileID.Anvils);
-
-			Recipe recipe2 = CreateRecipe();
-			recipe2.AddIngredient(ItemID.CrimtaneBar, 10);
-			recipe2.AddIngredient(ModContent.ItemType<AncientGear>(), 8);
-			recipe2.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -189,7 +187,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			justHit = false;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (Charge < MAX_CHARGE)
 				Charge++;
@@ -437,7 +435,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 		{
 			foreach (NPC NPC in Main.npc.Where(n => n.active && !n.dontTakeDamage && !n.townNPC && n.life > 0 && n.immune[Projectile.owner] <= 0 && n.Hitbox.Intersects(Projectile.Hitbox)))
 			{
-				OnHitNPC(NPC, 0, 0, false);
+				OnHitNPC(NPC, new NPC.HitInfo() { Damage = 0 }, 0);
 			}
 		}
 
@@ -471,7 +469,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			Projectile.velocity = parent.velocity;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 
 			if (Main.myPlayer == Projectile.owner)

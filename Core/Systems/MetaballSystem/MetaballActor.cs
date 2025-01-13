@@ -30,7 +30,9 @@ namespace StarlightRiver.Core.Systems.MetaballSystem
 			Target = new(DrawShapes, () => Active, 1);
 			Target2 = new(DrawSecondTarget, () => Active, 1.1f);
 
-			MetaballSystem.Actors.Add(this);
+			MetaballSystem.actorsSem.WaitOne();
+			MetaballSystem.actors.Add(this);
+			MetaballSystem.actorsSem.Release();
 		}
 
 		public void Unload()
@@ -98,7 +100,7 @@ namespace StarlightRiver.Core.Systems.MetaballSystem
 			metaballEdgeDetection.Parameters["height"].SetValue((float)Main.screenHeight / 2);
 			metaballEdgeDetection.Parameters["border"].SetValue(OutlineColor.ToVector4());
 
-			spriteBatch.Begin(default, default, default, default, default, metaballEdgeDetection);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, metaballEdgeDetection);
 
 			spriteBatch.Draw(Target2.RenderTarget, position: Vector2.Zero, color: Color.White);
 
@@ -117,13 +119,13 @@ namespace StarlightRiver.Core.Systems.MetaballSystem
 				return;
 
 			spriteBatch.End();
-			spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.Default, RasterizerState.CullNone, null, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.Default, RasterizerState.CullNone, null, Main.GameViewMatrix.TransformationMatrix);
 
 			if (PostDraw(spriteBatch, Target.RenderTarget))
 				spriteBatch.Draw(Target.RenderTarget, Vector2.Zero, null, Color.White, 0, new Vector2(0, 0), 2f, SpriteEffects.None, 0);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 }

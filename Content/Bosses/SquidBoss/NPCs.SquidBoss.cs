@@ -1,7 +1,11 @@
+using StarlightRiver.Content.Abilities;
 using StarlightRiver.Content.DropRules;
 using StarlightRiver.Content.GUI;
+using StarlightRiver.Content.Items.Misc;
 using StarlightRiver.Content.Items.Permafrost;
 using StarlightRiver.Content.NPCs.BaseTypes;
+using StarlightRiver.Content.PersistentData;
+using StarlightRiver.Core.Systems.BossRushSystem;
 using StarlightRiver.Core.Systems.CameraSystem;
 using StarlightRiver.Helpers;
 using System;
@@ -41,12 +45,31 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 		public float Opacity = 1;
 		public bool OpaqueJelly = false;
 
+		public byte platformOrder;
+
 		internal ref float Phase => ref NPC.ai[0];
 		internal ref float GlobalTimer => ref NPC.ai[1];
 		internal ref float AttackPhase => ref NPC.ai[2];
 		internal ref float AttackTimer => ref NPC.ai[3];
 
-		internal ArenaActor Arena => arenaActor.ModNPC as ArenaActor;
+		internal ArenaActor Arena => arenaActor?.ModNPC as ArenaActor;
+
+		internal List<NPC> OrderedPlatforms
+		{
+			get
+			{
+				var list = new List<NPC>();
+
+				for (int k = 0; k < 4; k++)
+				{
+					byte mask = (byte)(0b00000011 << k);
+					byte masked = (byte)(platformOrder & mask);
+					list.Add(platforms[masked >> k]);
+				}
+
+				return list;
+			}
+		}
 
 		public override string Texture => AssetDirectory.Invisible;
 
@@ -62,13 +85,18 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			return false;
 		}
 
+		public override bool CanHitPlayer(Player target, ref int cooldownSlot)
+		{
+			return false; // Disable contact damage
+		}
+
 		public void DrawBestiary(SpriteBatch spriteBatch, Vector2 screenPos)
 		{
 			Animate(12, 0, 8);
 			NPC.Center += Main.screenPosition - screenPos;
 			NPC.ai[1]++;
 
-			Texture2D body = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyUnder").Value;
+			Texture2D body = Assets.Bosses.SquidBoss.BodyUnder.Value;
 			spriteBatch.Draw(body, NPC.Center - Main.screenPosition, NPC.frame, Color.White, NPC.rotation, NPC.frame.Size() / 2, 1, 0, 0);
 
 			DrawHeadBlobs(spriteBatch);
@@ -120,14 +148,15 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			NPC.noTileCollide = true;
 			NPC.knockBackResist = 0;
 			NPC.dontTakeDamage = true;
+			NPC.npcSlots = 10;
 
 			baseLife = 2000;
 		}
 
-		public override void ScaleExpertStats(int numPlayers, float bossLifeScale)
+		public override void ApplyDifficultyAndPlayerScaling(int numPlayers, float balance, float bossAdjustment)
 		{
-			NPC.lifeMax = Main.masterMode ? (int)(8000 * bossLifeScale) : (int)(6000 * bossLifeScale);
-			baseLife = Main.masterMode ? (int)(4000 * bossLifeScale) : (int)(3000 * bossLifeScale);
+			NPC.lifeMax = Main.masterMode ? 8000 : 6000;
+			baseLife = Main.masterMode ? 4000 : 3000;
 		}
 
 		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
@@ -162,10 +191,18 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 				ItemType<TentacleHook>()
 			});
 
+			normalMode.OnSuccess(ItemDropRule.OneFromOptions(1, new int[]
+			{
+				ItemType<AxeBook>(),
+				ItemType<SwordBook>(),
+				ItemType<SpearBook>()
+			}));
+
 			npcLoot.Add(normalMode);
-			npcLoot.Add(CustomDropRules.onlyInNormalMode(ItemType<SquidFins>(), 4));
 			npcLoot.Add(ItemDropRule.Common(ItemType<Tiles.Trophies.AuroracleTrophyItem>(), 10, 1, 1));
 			npcLoot.Add(ItemDropRule.BossBag(ItemType<SquidBossBag>()));
+
+			npcLoot.Add(ItemDropRule.MasterModeCommonDrop(Mod.Find<ModItem>("AuroracleRelicItem").Type));
 		}
 
 		public override void BossLoot(ref string name, ref int potionType)
@@ -178,6 +215,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 					Player.GetModPlayer<MedalPlayer>().ProbeMedal("Auroracle");
 			}
 
+			BossRushDataStore.DefeatBoss(BossrushUnlockFlag.Auroracle);
 			StarlightWorld.Flag(WorldFlags.SquidBossDowned);
 		}
 
@@ -190,13 +228,13 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		public void DrawUnderWater(SpriteBatch spriteBatch, int NPCLayer)
 		{
-			Texture2D ring = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyRing").Value;
-			Texture2D ringGlow = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyRingGlow").Value;
-			Texture2D ringSpecular = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyRingSpecular").Value;
-			Texture2D ringBlur = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyRingBlur").Value;
+			Texture2D ring = Assets.Bosses.SquidBoss.BodyRing.Value;
+			Texture2D ringGlow = Assets.Bosses.SquidBoss.BodyRingGlow.Value;
+			Texture2D ringSpecular = Assets.Bosses.SquidBoss.BodyRingSpecular.Value;
+			Texture2D ringBlur = Assets.Bosses.SquidBoss.BodyRingBlur.Value;
 
-			Texture2D body = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyUnder").Value;
-			Texture2D bodyGlow = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyGlow").Value;
+			Texture2D body = Assets.Bosses.SquidBoss.BodyUnder.Value;
+			Texture2D bodyGlow = Assets.Bosses.SquidBoss.BodyGlow.Value;
 
 			for (int k = 3; k > 0; k--) //handles the drawing of the jelly rings under the boss.
 			{
@@ -255,10 +293,10 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		private void DrawHeadBlobs(SpriteBatch spriteBatch)
 		{
-			Texture2D headBlob = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyOver").Value;
-			Texture2D headBlobGlow = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyOverGlow").Value;
-			Texture2D headBlobSpecular = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyOverSpecular").Value;
-			Texture2D headBlobBlur = Request<Texture2D>(AssetDirectory.SquidBoss + "BodyBlur").Value;
+			Texture2D headBlob = Assets.Bosses.SquidBoss.BodyOver.Value;
+			Texture2D headBlobGlow = Assets.Bosses.SquidBoss.BodyOverGlow.Value;
+			Texture2D headBlobSpecular = Assets.Bosses.SquidBoss.BodyOverSpecular.Value;
+			Texture2D headBlobBlur = Assets.Bosses.SquidBoss.BodyBlur.Value;
 
 			for (int k = 0; k < 5; k++) //draws the head blobs
 			{
@@ -451,6 +489,18 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			if (arenaActor is null || !arenaActor.active)
 				arenaActor = Main.npc.FirstOrDefault(n => n.active && n.ModNPC is ArenaActor);
 
+			if (Phase > (int)AIStates.SpawnAnimation)
+				FindEssentialNPCs();
+
+			if (platforms is null || platforms.Count != 4 || platforms.Any(n => !n.active || n.ModNPC is not IcePlatform))
+				RebuildPlatforms();
+
+			if (Phase >= (int)AIStates.FirstPhase)
+			{
+				if (tentacles is null || tentacles.Count != 4 || tentacles.Any(n => !n.active || n.ModNPC is not Tentacle))
+					RebuildTentacles();
+			}
+
 			//boss health bar glow effects
 
 			float sin = (float)Math.Sin(Main.GameUpdateCount * 0.05f);
@@ -464,17 +514,15 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 				NPC.damage = 0;
 
-				foreach (NPC NPC in Main.npc.Where(n => n.active && n.ModNPC is IcePlatform))
-				{
-					platforms.Add(NPC);
-				}
-
-				platforms.RemoveAll(n => Math.Abs(n.Center.X - Main.npc.FirstOrDefault(l => l.active && l.ModNPC is ArenaActor).Center.X) >= 550);
+				RebuildPlatforms();
 
 				spawnPoint = NPC.Center;
 
-				int i = NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.Center.X, (int)NPC.Center.Y - 1050, NPCType<ArenaBlocker>(), 0, 800);
-				arenaBlocker = Main.npc[i];
+				if (Main.netMode != NetmodeID.MultiplayerClient)
+				{
+					int i = NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.Center.X, (int)NPC.Center.Y - 1050, NPCType<ArenaBlocker>(), 0, 800);
+					arenaBlocker = Main.npc[i];
+				}
 
 				for (int k = 0; k < Main.maxPlayers; k++)
 				{
@@ -484,11 +532,19 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 						Player.GetModPlayer<MedalPlayer>().QualifyForMedal("Auroracle", 0);
 				}
 
-				BossBarOverlay.SetTracked(NPC, ", The Venerated", Request<Texture2D>(AssetDirectory.GUI + "BossBarFrame").Value);
+				FindEssentialNPCs();
+
+				BossBarOverlay.SetTracked(NPC, ", The Venerated", Assets.GUI.BossBarFrame.Value);
 			}
 
 			if (Phase == (int)AIStates.SpawnAnimation)
+			{
 				SpawnAnimation();
+
+				// We need to find an initial target here for MP
+				if (NPC.target == 255)
+					RandomizeTarget();
+			}
 
 			if (Phase == (int)AIStates.FirstPhase) //first phase, part 1. Tentacle attacks and ink.
 			{
@@ -508,13 +564,20 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 					{
 						Phase = (int)AIStates.FirstPhaseTwo;
 						GlobalTimer = 0;
+						AttackPhase = 0;
 						ResetAttack();
 						return;
 					}
 					else //else advance the attack pattern
 					{
 						AttackPhase++;
-						variantAttack = Main.rand.NextBool();
+						RandomizeTarget();
+
+						if (Main.netMode != NetmodeID.MultiplayerClient)
+						{
+							variantAttack = Main.rand.NextBool();
+							NPC.netUpdate = true;
+						}
 
 						if (AttackPhase > (Main.expertMode ? 5 : 4))
 							AttackPhase = 1;
@@ -572,6 +635,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 					float fun = (float)(-937.5f * Math.Pow(x / 325f, 3) + 1406.25f * Math.Pow(x / 325f, 2) - 143.75 * x / 325f);
 					float dif = fun - (float)(-937.5f * Math.Pow(GlobalTimer / 325f, 3) + 1406.25f * Math.Pow(GlobalTimer / 325f, 2) - 143.75 * GlobalTimer / 325f);
 					Arena.NPC.ai[0] += dif;
+					Arena.NPC.netUpdate = true;
 
 					NPC.Center = Vector2.SmoothStep(savedPoint, spawnPoint + new Vector2(0, -750), GlobalTimer / 325f);
 
@@ -584,12 +648,6 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 				if (GlobalTimer > 275 && GlobalTimer <= 325)
 					Arena.waterfallWidth = 50 - ((int)GlobalTimer - 275);
-
-				if (GlobalTimer == 325) //make the remaining tentacles vulnerable
-				{
-					foreach (NPC tentacle in tentacles.Where(n => n.ai[0] == 1))
-						tentacle.ai[0] = 0;
-				}
 
 				if (GlobalTimer > 325) //continue attacking otherwise
 				{
@@ -614,6 +672,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 						else //else advance the attack pattern
 						{
 							AttackPhase++;
+							RandomizeTarget();
 
 							if (AttackPhase > (Main.expertMode ? 6 : 5))
 								AttackPhase = 1;
@@ -668,6 +727,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 					float fun = (float)(-833.33f * Math.Pow(x / 325f, 3) + 1250f * Math.Pow(x / 325f, 2) - 116.66 * x / 325f);
 					float dif = fun - (float)(-833.33f * Math.Pow(GlobalTimer / 325f, 3) + 1250f * Math.Pow(GlobalTimer / 325f, 2) - 116.66 * GlobalTimer / 325f);
 					Arena.NPC.ai[0] += dif;
+					Arena.NPC.netUpdate = true;
 
 					if (GlobalTimer % 45 == 0 && GlobalTimer < 200)
 						Helper.PlayPitched("SquidBoss/UnderwaterSwoosh", 1, 0f, NPC.Center);
@@ -708,6 +768,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 						}
 
 						AttackPhase++;
+						RandomizeTarget();
 
 						variantAttack = Main.rand.NextBool();
 
@@ -758,7 +819,6 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 				if (GlobalTimer == 240) //roar and activate
 				{
-					NPC.dontTakeDamage = false;
 					CameraSystem.shake += 40;
 					Terraria.Audio.SoundEngine.PlaySound(SoundID.Roar, NPC.Center);
 				}
@@ -768,6 +828,8 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 				if (GlobalTimer > 240) //following unless using ink attack
 				{
+					NPC.dontTakeDamage = false;
+
 					if (AttackPhase != 3)
 					{
 						Vector2 moveTarget = Main.player[NPC.target].Center;
@@ -793,6 +855,7 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 					if (AttackTimer == 1)
 					{
 						AttackPhase++;
+						RandomizeTarget();
 
 						if (AttackPhase > 3)
 							AttackPhase = 1;
@@ -812,22 +875,103 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 			if (Phase == (int)AIStates.Fleeing)
 			{
+				AttackTimer++;
+				NPC.position += Vector2.UnitY * 16;
+
 				if (GlobalTimer < 50)
 					Arena.waterfallWidth = 50 - (int)GlobalTimer;
 
-				if (GlobalTimer > 50)
+				if (AttackTimer > 80)
 					NPC.active = false;
+
+				BossRushSystem.ForceFail();
+			}
+		}
+
+		/// <summary>
+		/// Failsafe method to re-find the boss' platforms if he de-syncs with them
+		/// </summary>
+		public void RebuildPlatforms()
+		{
+			platforms ??= new();
+
+			platforms.Clear();
+
+			foreach (NPC NPC in Main.npc.Where(n => n.active && n.ModNPC is IcePlatform))
+			{
+				platforms.Add(NPC);
+			}
+
+			Mod.Logger.Info($"Added {platforms.Count} platforms to auroracle's platform collection");
+
+			platforms.RemoveAll(n => Math.Abs(n.Center.X - Main.npc.FirstOrDefault(l => l.active && l.ModNPC is ArenaActor).Center.X) >= 550);
+
+			// Sort by X position, deterministic
+			platforms.Sort((a, b) => a.Center.X > b.Center.X ? 1 : -1);
+
+			Mod.Logger.Info($"Retained {platforms.Count} platforms to auroracle's platform collection");
+
+			if (platforms is null || platforms.Count != 4 || platforms.Any(n => !n.active || n.ModNPC is not IcePlatform))
+			{
+				Mod.Logger.Error("Auroracle failed to rebuild platform collection!");
+			}
+		}
+
+		/// <summary>
+		/// Failsafe method to re-find the boss' tentacles if he de-syncs with them
+		/// </summary>
+		public void RebuildTentacles()
+		{
+			tentacles ??= new();
+
+			tentacles.Clear();
+
+			foreach (NPC NPC in Main.npc.Where(n => n.active && n.ModNPC is Tentacle))
+			{
+				tentacles.Add(NPC);
+			}
+
+			tentacles.Sort((a, b) => a.ai[2] > b.ai[2] ? 1 : -1);
+
+			if (tentacles is null || tentacles.Count != 4 || tentacles.Any(n => !n.active || n.ModNPC is not Tentacle))
+			{
+				Mod.Logger.Error("Auroracle failed to rebuild tentacle collection!");
+			}
+		}
+
+		/// <summary>
+		/// Checks for and re-finds essential supporting NPCs
+		/// </summary>
+		public void FindEssentialNPCs()
+		{
+			if (arenaActor is null || !arenaActor.active || arenaActor.type != NPCType<ArenaActor>())
+				arenaActor = Main.npc.FirstOrDefault(n => n.active && n.type == NPCType<ArenaActor>());
+
+			if (arenaBlocker is null || !arenaBlocker.active || arenaBlocker.type != NPCType<ArenaBlocker>())
+				arenaBlocker = Main.npc.FirstOrDefault(n => n.active && n.type == NPCType<ArenaBlocker>());
+
+			if (arenaActor is null || arenaBlocker is null)
+			{
+				Mod.Logger.Error("Auroracle failed to find his arena!");
 			}
 		}
 
 		public override void SendExtraAI(System.IO.BinaryWriter writer)
 		{
 			writer.Write(variantAttack);
+			writer.Write(NPC.dontTakeDamage);
+			writer.WriteVector2(spawnPoint);
+			writer.WriteVector2(savedPoint);
+			writer.Write(platformOrder);
 		}
 
 		public override void ReceiveExtraAI(System.IO.BinaryReader reader)
 		{
 			variantAttack = reader.ReadBoolean();
+			NPC.dontTakeDamage = reader.ReadBoolean();
+			spawnPoint = reader.ReadVector2();
+			savedPoint = reader.ReadVector2();
+			platformOrder = reader.ReadByte();
 		}
 	}
 }

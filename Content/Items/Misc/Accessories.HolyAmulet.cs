@@ -10,16 +10,16 @@ namespace StarlightRiver.Content.Items.Misc
 	{
 		public override string Texture => AssetDirectory.MiscItem + Name;
 
-		public HolyAmulet() : base("Holy Amulet", "Releases bursts of homing energy for every 25 HP healed") { }
+		public HolyAmulet() : base("Holy Amulet", "Releases bursts of homing holy energy for every 25 life you heal") { }
 
 		public override void Load()
 		{
-			On.Terraria.Player.HealEffect += HealEffect;
+			On_Player.HealEffect += HealEffect;
 		}
 
 		public override void Unload()
 		{
-			On.Terraria.Player.HealEffect -= HealEffect;
+			On_Player.HealEffect -= HealEffect;
 		}
 
 		public override void SafeUpdateEquip(Player Player)
@@ -27,12 +27,17 @@ namespace StarlightRiver.Content.Items.Misc
 			Player.GetModPlayer<HolyAmuletHealingTracker>().item = Item;
 		}
 
-		private void HealEffect(On.Terraria.Player.orig_HealEffect orig, Player self, int healAmount, bool broadcast)
+		private void HealEffect(On_Player.orig_HealEffect orig, Player self, int healAmount, bool broadcast)
 		{
 			if (Equipped(self))
 				self.GetModPlayer<HolyAmuletHealingTracker>().Healed(healAmount);
 
 			orig(self, healAmount, broadcast);
+		}
+
+		public override void SafeSetDefaults()
+		{
+			Item.value = Item.sellPrice(gold: 1, silver: 25);
 		}
 
 		public override void AddRecipes()
@@ -198,14 +203,17 @@ namespace StarlightRiver.Content.Items.Misc
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, oldPositionCacheLength, new TriangularTip(trailMaxWidth * 4), factor => factor * trailMaxWidth, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				// 1 = full opacity, 0 = transparent.
-				float normalisedAlpha = 1 - Projectile.alpha / 255f;
+				trail = new Trail(Main.instance.GraphicsDevice, oldPositionCacheLength, new NoTip(), factor => factor * trailMaxWidth, factor =>
+							{
+								// 1 = full opacity, 0 = transparent.
+								float normalisedAlpha = 1 - Projectile.alpha / 255f;
 
-				// Scales opacity with the Projectile alpha as well as the distance from the beginning of the trail.
-				return Color.Crimson * normalisedAlpha * factor.X;
-			});
+								// Scales opacity with the Projectile alpha as well as the distance from the beginning of the trail.
+								return Color.Crimson * normalisedAlpha * factor.X;
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -216,7 +224,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Effect effect = Filters.Scene["Primitives"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
@@ -229,7 +237,7 @@ namespace StarlightRiver.Content.Items.Misc
 			return TargetNPCIndex != -1 && !HitATarget && Main.npc[TargetNPCIndex] == target;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			Projectile.timeLeft = 30;
 			HitATarget = true;

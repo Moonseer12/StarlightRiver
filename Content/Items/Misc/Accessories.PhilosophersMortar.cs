@@ -7,8 +7,6 @@ namespace StarlightRiver.Content.Items.Misc
 	{
 		public override string Texture => AssetDirectory.MiscItem + Name;
 
-		public PhilosophersMortar() : base(ModContent.Request<Texture2D>(AssetDirectory.MiscItem + "PhilosophersMortar").Value) { }
-
 		public override void Load()
 		{
 			StarlightItem.OnPickupEvent += OnPickup;
@@ -22,7 +20,7 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override void SafeSetDefaults()
 		{
-			Item.value = 1;
+			Item.value = Item.sellPrice(gold: 1, silver: 25);
 			Item.rare = ItemRarityID.LightRed;
 		}
 

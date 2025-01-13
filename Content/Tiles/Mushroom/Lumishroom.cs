@@ -21,7 +21,7 @@ namespace StarlightRiver.Content.Tiles.Mushroom
 			TileObjectData.newTile.RandomStyleRange = 5;
 			TileObjectData.newTile.StyleHorizontal = true;
 
-			ItemDrop = ItemType<LumishroomItem>();
+			RegisterItemDrop(ItemType<LumishroomItem>());
 
 			this.QuickSetFurniture(1, 1, 61, SoundID.Grass, false, Color.Green);
 			AddToArray(ref TileID.Sets.RoomNeeds.CountsAsTorch);
@@ -35,7 +35,7 @@ namespace StarlightRiver.Content.Tiles.Mushroom
 		public override void PostDraw(int i, int j, SpriteBatch spriteBatch)
 		{
 			Tile tile = Framing.GetTileSafely(i, j);
-			Texture2D tex = Request<Texture2D>("StarlightRiver/Assets/Tiles/Mushroom/LumishroomGlow").Value;
+			Texture2D tex = Assets.Tiles.Mushroom.LumishroomGlow.Value;
 			Vector2 pos = (new Vector2(i, j) + Helper.TileAdj) * 16 - Main.screenPosition;
 
 			spriteBatch.Draw(tex, pos, new Rectangle(tile.TileFrameX, tile.TileFrameY, 16, 16), Color.White * (float)(0.8f + Math.Sin(StarlightWorld.visualTimer + i) * 0.5f));

@@ -15,7 +15,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Aurora Bell");
-			Tooltip.SetDefault("Summons a sentry bell \nHit the bell with a whip to ring it");
+			Tooltip.SetDefault("Summons a bell sentry\nHit the bell with a whip to ring it");
 		}
 
 		public override void SetDefaults()
@@ -25,7 +25,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 			Item.mana = 12;
 			Item.width = 40;
 			Item.height = 40;
-			Item.value = Item.sellPrice(0, 0, 80, 0);
+			Item.value = Item.sellPrice(0, 2, 0, 0);
 			Item.rare = ItemRarityID.Green;
 			Item.knockBack = 2.5f;
 			Item.UseSound = SoundID.Item25;
@@ -122,7 +122,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 			counter++;
 
 			if (chargeCounter < 300)
-				chargeCounter++;
+				chargeCounter += 2;
 
 			if (chargeCounter == 299)
 				Projectile.NewProjectileDirect(Projectile.GetSource_FromThis(), Projectile.Center + offset, Vector2.Zero, ModContent.ProjectileType<AuroraBellRingSmall>(), 0, 0, Owner.whoAmI);
@@ -273,13 +273,10 @@ namespace StarlightRiver.Content.Items.Permafrost
 
 		public override void AI()
 		{
-			if (noise == null)
+			noise ??= new FastNoise(Main.rand.Next(9999))
 			{
-				noise = new FastNoise(Main.rand.Next(9999))
-				{
-					NoiseType = FastNoise.NoiseTypes.Perlin
-				};
-			}
+				NoiseType = FastNoise.NoiseTypes.Perlin
+			};
 
 			noise.Frequency = MathHelper.Lerp(5, 1.5f, Progress);
 
@@ -346,15 +343,19 @@ namespace StarlightRiver.Content.Items.Permafrost
 		private void ManageTrail()
 		{
 
-			trail ??= new Trail(Main.instance.GraphicsDevice, 129, new TriangularTip(1), factor => 34 * (1 - Progress) * radiusMult, factor => new Color(181, 0, 252));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 129, new NoTip(), factor => 34 * (1 - Progress) * radiusMult, factor => new Color(181, 0, 252));
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 129, new TriangularTip(1), factor => 30 * (1 - Progress) * radiusMult, factor =>
+			if (trail2 is null || trail2.IsDisposed)
 			{
-				float sin = 1 + (float)Math.Sin(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
-				float cos = 1 + (float)Math.Cos(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
-				return new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f);
-				;
-			});
+				trail2 = new Trail(Main.instance.GraphicsDevice, 129, new NoTip(), factor => 30 * (1 - Progress) * radiusMult, factor =>
+							{
+								float sin = 1 + (float)Math.Sin(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
+								float cos = 1 + (float)Math.Cos(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
+								return new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f);
+								;
+							});
+			}
 
 			float nextplace = 33f / 32f;
 			var offset = new Vector2((float)Math.Sin(nextplace), (float)Math.Cos(nextplace));
@@ -372,11 +373,11 @@ namespace StarlightRiver.Content.Items.Permafrost
 			Effect effect = Filters.Scene["OrbitalStrikeTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			effect.Parameters["alpha"].SetValue(1);
 
 			trail?.Render(effect);
@@ -449,20 +450,26 @@ namespace StarlightRiver.Content.Items.Permafrost
 		private void ManageTrail()
 		{
 
-			trail ??= new Trail(Main.instance.GraphicsDevice, 129, new TriangularTip(1), factor => 20 * (1 - Progress), factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				float sin = 1 + (float)Math.Sin(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
-				float cos = 1 + (float)Math.Cos(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
-				return new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f);
-			});
+				trail = new Trail(Main.instance.GraphicsDevice, 129, new NoTip(), factor => 20 * (1 - Progress), factor =>
+							{
+								float sin = 1 + (float)Math.Sin(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
+								float cos = 1 + (float)Math.Cos(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
+								return new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f);
+							});
+			}
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 129, new TriangularTip(1), factor => 10 * (1 - Progress), factor =>
+			if (trail2 is null || trail2.IsDisposed)
 			{
-				float sin = 1 + (float)Math.Sin(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
-				float cos = 1 + (float)Math.Cos(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
-				return new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f);
-				;
-			});
+				trail2 = new Trail(Main.instance.GraphicsDevice, 129, new NoTip(), factor => 10 * (1 - Progress), factor =>
+							{
+								float sin = 1 + (float)Math.Sin(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
+								float cos = 1 + (float)Math.Cos(Projectile.timeLeft * 0.4f + Projectile.ai[0] * 0.6f + factor.X * 6.28f);
+								return new Color(0.5f + cos * 0.2f, 0.8f, 0.5f + sin * 0.2f);
+								;
+							});
+			}
 
 			float nextplace = 33f / 32f;
 			var offset = new Vector2((float)Math.Sin(nextplace), (float)Math.Cos(nextplace));
@@ -480,11 +487,11 @@ namespace StarlightRiver.Content.Items.Permafrost
 			Effect effect = Filters.Scene["OrbitalStrikeTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			effect.Parameters["alpha"].SetValue(1);
 
 			trail?.Render(effect);

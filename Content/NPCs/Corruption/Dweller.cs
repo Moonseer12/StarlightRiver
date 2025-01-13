@@ -1,8 +1,11 @@
-﻿using StarlightRiver.Content.Foregrounds;
+﻿using StarlightRiver.Content.Abilities;
+using StarlightRiver.Content.Foregrounds;
+using StarlightRiver.Content.Items.EvilBiomes;
 using System;
 using Terraria.Audio;
 using Terraria.DataStructures;
 using Terraria.GameContent.Bestiary;
+using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
 using Terraria.ModLoader.Utilities;
 using static Terraria.ModLoader.ModContent;
@@ -263,14 +266,19 @@ namespace StarlightRiver.Content.NPCs.Corruption
 			return false;
 		}
 
+		public override void ModifyNPCLoot(NPCLoot npcLoot)
+		{
+			npcLoot.Add(ItemDropRule.Common(ItemType<ReplicantCells>(), 25));
+		}
+
 		public override float SpawnChance(NPCSpawnInfo spawnInfo)
 		{
 			return SpawnCondition.Corruption.Chance * 0.27f;
 		}
 
-		public override void OnKill()
+		public override void HitEffect(NPC.HitInfo hit)
 		{
-			if (Main.netMode != NetmodeID.Server)
+			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
 			{
 				for (int j = 1; j <= 7; j++)
 					Gore.NewGoreDirect(NPC.GetSource_Death(), NPC.position + new Vector2(Main.rand.Next(NPC.width), Main.rand.Next(NPC.height)), Main.rand.NextVector2Circular(3, 3), Mod.Find<ModGore>("DwellerGore" + j).Type);

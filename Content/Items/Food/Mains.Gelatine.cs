@@ -5,11 +5,13 @@ namespace StarlightRiver.Content.Items.Food
 {
 	internal class Gelatine : Ingredient
 	{
-		public Gelatine() : base("+6% damage reduction\n+3 defense", 1600, IngredientType.Main) { }
+		public Gelatine() : base("+6% damage reduction\n+3 defense", 3600 * 8, IngredientType.Main) { }
 
 		public override void SafeSetDefaults()
 		{
 			Item.rare = ItemRarityID.Blue;
+
+			Item.value = Item.sellPrice(silver: 20);
 		}
 
 		public override void Load()

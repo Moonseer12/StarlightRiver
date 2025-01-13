@@ -1,4 +1,5 @@
 ﻿using StarlightRiver.Content.Items.BaseTypes;
+using StarlightRiver.Content.Tiles.Permafrost;
 using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
@@ -9,8 +10,11 @@ namespace StarlightRiver.Content.Items.Permafrost
 {
 	public class BookOfFrost : SmartAccessory
 	{
-		public BookOfFrost() : base("Book Of Frost", "Melee critical strikes cause an icy explosion") { }
+		public int cooldown;
+
 		public override string Texture => AssetDirectory.PermafrostItem + Name;
+
+		public BookOfFrost() : base("Book Of Frost", "Melee critical strikes cause an icy explosion") { }
 
 		public override void Load()
 		{
@@ -24,28 +28,50 @@ namespace StarlightRiver.Content.Items.Permafrost
 			Item.value = Item.sellPrice(gold: 1, silver: 25);
 		}
 
-		private void ProjectileCritExplosion(Player player, Projectile proj, NPC target, int damage, float knockback, bool crit)
+		public override void UpdateAccessory(Player player, bool hideVisual)
+		{
+			if (cooldown > 0)
+				cooldown--;
+		}
+
+		private void ProjectileCritExplosion(Player player, Projectile proj, NPC target, NPC.HitInfo info, int damageDone)
 		{
 			if (!Equipped(player))
 				return;
 
-			if (proj.CountsAsClass(DamageClass.Melee) && crit)
+			var instance = GetEquippedInstance(player) as BookOfFrost;
+
+			if (proj.CountsAsClass(DamageClass.Melee) && info.Crit && instance.cooldown <= 0)
 			{
 				Helper.PlayPitched("Magic/FrostHit", 0.75f, Main.rand.NextFloat(-0.05f, 0.05f), target.Center);
-				Projectile.NewProjectile(player.GetSource_OnHit(target), target.Center, Vector2.Zero, ModContent.ProjectileType<FrostExplosion>(), (int)(damage * 1.25f), knockback * 0.25f, player.whoAmI);
+				Projectile.NewProjectile(player.GetSource_OnHit(target), target.Center, Vector2.Zero, ModContent.ProjectileType<FrostExplosion>(), (int)(damageDone * 0.75f), info.Knockback * 0.25f, player.whoAmI);
+				instance.cooldown = 60;
 			}
 		}
 
-		private void CritExplosion(Player player, Item Item, NPC target, int damage, float knockback, bool crit)
+		private void CritExplosion(Player player, Item Item, NPC target, NPC.HitInfo info, int damageDone)
 		{
 			if (!Equipped(player))
 				return;
 
-			if (Item.CountsAsClass(DamageClass.Melee) && crit)
+			var instance = GetEquippedInstance(player) as BookOfFrost;
+
+			if (Item.CountsAsClass(DamageClass.Melee) && info.Crit && instance.cooldown <= 0)
 			{
 				Helper.PlayPitched("Magic/FrostHit", 0.75f, Main.rand.NextFloat(-0.05f, 0.05f), target.Center);
-				Projectile.NewProjectile(player.GetSource_OnHit(target), target.Center, Vector2.Zero, ModContent.ProjectileType<FrostExplosion>(), (int)(damage * 1.25f), knockback * 0.25f, player.whoAmI);
+				Projectile.NewProjectile(player.GetSource_OnHit(target), target.Center, Vector2.Zero, ModContent.ProjectileType<FrostExplosion>(), (int)(damageDone * 0.75f), info.Knockback * 0.25f, player.whoAmI);
+				instance.cooldown = 60;
 			}
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.Book);
+			recipe.AddIngredient(ItemID.IceBlock, 20);
+			recipe.AddIngredient<AuroraIceBar>(5);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -111,7 +137,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 			return Helper.CheckCircularCollision(Projectile.Center, (int)Radius + 50, targetHitbox);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(BuffID.Frostburn, 240);
 		}
@@ -141,12 +167,14 @@ namespace StarlightRiver.Content.Items.Permafrost
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 40, new TriangularTip(40 * 3.5f), factor => 25f, factor => new Color(0, 165 + (int)(100 * (float)Math.Sin(TimeFade * 3.14f)), 225) * (float)Math.Sin(TimeFade * 3.14f) * 0.5f);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 40, new NoTip(), factor => 25f, factor => new Color(0, 165 + (int)(100 * (float)Math.Sin(TimeFade * 3.14f)), 225) * (float)Math.Sin(TimeFade * 3.14f) * 0.5f);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = cache[39];
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 40, new TriangularTip(40 * 3.5f), factor => 15f, factor => new Color(100, 150 + (int)(100 * (float)Math.Sin(TimeFade * 3.14f)), 255) * (float)Math.Sin(TimeFade * 3.14f) * 0.5f);
+			if (trail2 is null || trail2.IsDisposed)
+				trail2 = new Trail(Main.instance.GraphicsDevice, 40, new NoTip(), factor => 15f, factor => new Color(100, 150 + (int)(100 * (float)Math.Sin(TimeFade * 3.14f)), 255) * (float)Math.Sin(TimeFade * 3.14f) * 0.5f);
 
 			trail2.Positions = cache.ToArray();
 			trail2.NextPosition = cache[39];
@@ -160,18 +188,18 @@ namespace StarlightRiver.Content.Items.Permafrost
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Projectile.timeLeft * -0.01f);
 			effect.Parameters["repeats"].SetValue(5f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 
 			trail?.Render(effect);
 			trail2?.Render(effect);
 
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/LightningTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.LightningTrail.Value);
 
 			trail2?.Render(effect);
 		}

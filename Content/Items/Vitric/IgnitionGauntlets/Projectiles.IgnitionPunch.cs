@@ -63,26 +63,18 @@ namespace StarlightRiver.Content.Items.Vitric.IgnitionGauntlets
 
 			if (oldPosition.Count > (Projectile.extraUpdates == 2 ? 16 : 0))
 				oldPosition.RemoveAt(0);
-
-			/*if (Projectile.timeLeft == 2 && Projectile.extraUpdates != 0)
-			{
-				Projectile.penetrate += 2;
-				Projectile.timeLeft = 20;
-				Projectile.extraUpdates = 0;
-				Projectile.friendly = false;
-				Projectile.velocity = Vector2.Zero;
-				Projectile.friendly = false;
-			}*/
 			else
 				Lighting.AddLight(Projectile.Center, Color.OrangeRed.ToVector3() * 0.4f);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			int distance = (int)(Owner.Center - Projectile.Center).Length();
 			float pushback = (float)Math.Sqrt(200 * EaseFunction.EaseCubicIn.Ease((200 - distance) / 200f));
 			Vector2 direction = target.DirectionTo(Owner.Center);
-			Owner.velocity += direction * pushback * 0.15f;
+
+			if (direction.LengthSquared() > 0)
+				Owner.velocity += direction * (pushback + 0.01f) * 0.15f;
 
 			var proj = Projectile.NewProjectileDirect(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity * 0.4f, ModContent.ProjectileType<IgnitionGauntletsImpactRing>(), 0, 0, Owner.whoAmI, Main.rand.Next(15, 25), Projectile.velocity.ToRotation());
 
@@ -107,7 +99,7 @@ namespace StarlightRiver.Content.Items.Vitric.IgnitionGauntlets
 			Texture2D afterTex = ModContent.Request<Texture2D>(Texture + "_After").Value;
 
 			/*Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);*/
+			Main.spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);*/
 
 			for (int k = 15; k > 0; k--)
 			{
@@ -119,7 +111,7 @@ namespace StarlightRiver.Content.Items.Vitric.IgnitionGauntlets
 			}
 
 			/*Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.AlphaBlend, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);*/
+			Main.spriteBatch.Begin(default, BlendState.AlphaBlend, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);*/
 
 			Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition, null, Color.White * (float)EaseFunction.EaseQuarticOut.Ease(Fade), Projectile.rotation, tex.Size() / 2, Projectile.scale * 1.2f, SpriteEffects.None, 0f);
 			return false;

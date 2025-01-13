@@ -5,12 +5,16 @@ namespace StarlightRiver.Content.NPCs.TownModifications
 {
 	class PartyGirlShopAdditions : GlobalNPC
 	{
-		public override void SetupShop(int type, Chest shop, ref int nextSlot)
+		public override bool AppliesToEntity(NPC entity, bool lateInstantiation)
 		{
-			if (type == NPCID.PartyGirl)
+			return entity.type == NPCID.PartyGirl;
+		}
+
+		public override void ModifyShop(NPCShop shop)
+		{
+			if (shop.NpcType == NPCID.PartyGirl)
 			{
-				shop.item[nextSlot].SetDefaults(ModContent.ItemType<BalloonGun>());
-				nextSlot++;
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<BalloonGun>()));
 			}
 		}
 	}

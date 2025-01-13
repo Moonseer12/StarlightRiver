@@ -1,7 +1,12 @@
 ﻿using StarlightRiver.Content.Abilities;
+using StarlightRiver.Content.Abilities.ForbiddenWinds;
+using StarlightRiver.Content.Biomes;
 using StarlightRiver.Content.Dusts;
+using StarlightRiver.Content.Items.Vitric;
 using StarlightRiver.Helpers;
+using Terraria.DataStructures;
 using Terraria.GameContent.Bestiary;
+using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
@@ -9,6 +14,9 @@ namespace StarlightRiver.Content.NPCs.Vitric
 {
 	internal class CrystalSlime : ModNPC
 	{
+		public int badHits;
+		private bool performedSpawnEffects = false;
+
 		public override string Texture => AssetDirectory.VitricNpc + "CrystalSlime";
 
 		public ref float Shield => ref NPC.ai[1];
@@ -34,12 +42,17 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			NPC.immortal = true;
 		}
 
+		public override void OnSpawn(IEntitySource source)
+		{
+			Shield = 1; // make sure it spawns with a shield even if the spawnNPC doesn't include the shield value
+		}
+
 		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
 		{
 			bestiaryEntry.Info.AddRange(new IBestiaryInfoElement[]
 			{
 				Bestiary.SLRSpawnConditions.VitricDesert,
-				new FlavorTextBestiaryInfoElement("[PH] Entry")
+				new FlavorTextBestiaryInfoElement("An extremely elusive specimen. It's taken in a large amount of crystals and Starlight energy, forming a priceless coating over its membrane. Anyone that finds an intact one should be extremely careful not to break it, for it's likely they will never encounter it again.")
 			});
 		}
 
@@ -50,6 +63,16 @@ namespace StarlightRiver.Content.NPCs.Vitric
 
 		public override void AI()
 		{
+			if (!performedSpawnEffects)
+			{
+				performedSpawnEffects = true;
+				// Spawn dust
+				for (int k = 0; k < 20; k++)
+				{
+					Dust.NewDust(NPC.Center, 20, 20, DustType<Dusts.Cinder>());
+				}
+			}
+
 			NPC.TargetClosest(true);
 			Player Player = Main.player[NPC.target];
 			AbilityHandler mp = Player.GetHandler();
@@ -95,15 +118,24 @@ namespace StarlightRiver.Content.NPCs.Vitric
 			}
 		}
 
-		public override bool StrikeNPC(ref double damage, int defense, ref float knockback, int hitDirection, ref bool crit)
+		public override void ModifyNPCLoot(NPCLoot npcLoot)
 		{
-			if (Shield == 1)
-				damage = 0;
-
-			return base.StrikeNPC(ref damage, defense, ref knockback, hitDirection, ref crit);
+			npcLoot.Add(ItemDropRule.Common(ItemType<VitricOre>(), 1, 1, 5));
 		}
 
-		public override void ModifyHitPlayer(Player target, ref int damage, ref bool crit)
+		public override void ModifyIncomingHit(ref NPC.HitModifiers modifiers)
+		{
+			if (Shield == 1)
+			{
+				modifiers.FinalDamage -= int.MaxValue;
+				modifiers.HideCombatText();
+
+				badHits++;
+				CombatText.NewText(NPC.Hitbox, new Color(200, 255, 255), badHits > 20 ? "Dash into me first!" : "Blocked!");
+			}
+		}
+
+		public override void ModifyHitPlayer(Player target, ref Player.HurtModifiers modifiers)
 		{
 			if (AbilityHelper.CheckDash(target, NPC.Hitbox))
 			{
@@ -114,6 +146,9 @@ namespace StarlightRiver.Content.NPCs.Vitric
 
 		public override float SpawnChance(NPCSpawnInfo spawnInfo)
 		{
+			if (spawnInfo.Player.InModBiome<VitricDesertBiome>() && spawnInfo.Player.GetModPlayer<AbilityHandler>().Unlocked<Dash>())
+				return 20;
+
 			return 0;
 		}
 
@@ -121,9 +156,12 @@ namespace StarlightRiver.Content.NPCs.Vitric
 		{
 			if (Shield == 1)
 			{
+				Texture2D tex = Assets.NPCs.Vitric.Crystal.Value;
+				Texture2D texGlow = Assets.NPCs.Vitric.CrystalGlow.Value;
 				Color color = Helper.IndicatorColor;
-				spriteBatch.Draw(Request<Texture2D>("StarlightRiver/Assets/NPCs/Vitric/Crystal").Value, NPC.position - screenPos + new Vector2(-2, -5), Lighting.GetColor((int)NPC.position.X / 16, (int)NPC.position.Y / 16));
-				spriteBatch.Draw(Request<Texture2D>("StarlightRiver/Assets/NPCs/Vitric/CrystalGlow").Value, NPC.position - screenPos + new Vector2(-3, -6), color);
+
+				spriteBatch.Draw(tex, NPC.Center - screenPos, null, drawColor, NPC.rotation, tex.Size() / 2f, NPC.scale, 0, 0);
+				spriteBatch.Draw(texGlow, NPC.Center - screenPos, null, color, NPC.rotation, texGlow.Size() / 2f, NPC.scale, 0, 0);
 			}
 		}
 	}

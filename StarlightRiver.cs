@@ -1,7 +1,9 @@
 global using Microsoft.Xna.Framework;
 global using Microsoft.Xna.Framework.Graphics;
+global using ReLogic.Content;
 global using StarlightRiver.Core;
 global using Terraria;
+global using Terraria.Localization;
 global using Terraria.ModLoader;
 using StarlightRiver.Content.Abilities;
 using StarlightRiver.Content.Bestiary;
@@ -13,14 +15,6 @@ using System.Reflection;
 
 namespace StarlightRiver
 {
-	public class TemporaryFix : PreJITFilter
-	{
-		public override bool ShouldJIT(MemberInfo member)
-		{
-			return false;
-		}
-	}
-
 	public partial class StarlightRiver : Mod
 	{
 		private List<IOrderedLoadable> loadCache;
@@ -43,12 +37,7 @@ namespace StarlightRiver
 		public StarlightRiver()
 		{
 			Instance = this;
-			PreJITFilter = new TemporaryFix();
 		}
-
-		public bool useIntenseMusic = false; //TODO: Make some sort of music handler at some point for this
-
-		private Vector2 lastScreenSize; //Putting these in StarlightRiver incase anything else wants to use them (which is likely)
 
 		public static void SetLoadingText(string text)
 		{
@@ -94,8 +83,6 @@ namespace StarlightRiver
 
 			if (!Main.dedServ)
 			{
-				lastScreenSize = new Vector2(Main.screenWidth, Main.screenHeight);
-
 				//Hotkeys
 				AbilityKeys = new AbilityHotkeys(this);
 				AbilityKeys.LoadDefaults();
@@ -104,34 +91,36 @@ namespace StarlightRiver
 
 		public override void Unload()
 		{
-			foreach (IOrderedLoadable loadable in loadCache)
+			if (loadCache != null)
 			{
-				loadable.Unload();
-			}
+				foreach (IOrderedLoadable loadable in loadCache)
+				{
+					loadable.Unload();
+				}
 
-			loadCache = null;
+				loadCache = null;
+			}
+			else
+			{
+				Logger.Warn("load cache was null, IOrderedLoadable's may not have been unloaded...");
+			}
 
 			if (!Main.dedServ)
 			{
-				Instance = null;
-				AbilityKeys.Unload();
+				Instance ??= null;
+				AbilityKeys?.Unload();
 
 				SLRSpawnConditions.Unload();
+
 			}
 		}
 
-		public override void AddRecipeGroups()/* tModPorter Note: Removed. Use ModSystem.AddRecipeGroups */
+		public override void AddRecipeGroups()
 		{
 			foreach (IRecipeGroup group in recipeGroupCache)
 			{
 				group.AddRecipeGroups();
 			}
-		}
-
-		public void CheckScreenSize()
-		{
-			if (!Main.dedServ && !Main.gameMenu)
-				lastScreenSize = new Vector2(Main.screenWidth, Main.screenHeight);
 		}
 
 		public override void PostSetupContent()

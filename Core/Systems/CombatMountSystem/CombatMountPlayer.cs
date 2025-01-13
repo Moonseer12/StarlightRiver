@@ -6,22 +6,27 @@ namespace StarlightRiver.Core.Systems.CombatMountSystem
 	{
 		public CombatMount activeMount;
 
+		/// <summary>
+		/// Multiplier for combat mount cooldowns. Increase to decrease the cooldown and vice versa, ex: 1.5f = 50% faster, 0.5f = 50% slower
+		/// </summary>
+		public float combatMountCooldownMultiplier = 1f;
+
 		public int mountingTime;
 		public Vector2 startPoint;
 
 		public override void Load()
 		{
-			On.Terraria.Player.ItemCheck_Inner += TriggerMountAttacks;
+			On_Player.ItemCheck_Inner += TriggerMountAttacks;
 		}
 
-		private void TriggerMountAttacks(On.Terraria.Player.orig_ItemCheck_Inner orig, Player self, int i)
+		private void TriggerMountAttacks(On_Player.orig_ItemCheck_Inner orig, Player self)
 		{
 			CombatMount activeMount = self.GetModPlayer<CombatMountPlayer>().activeMount;
 			Item sItem = self.HeldItem;
 
 			if (activeMount is null || self.CCed || !self.controlUseItem || !self.releaseUseItem || self.itemAnimation != 0)
 			{
-				orig(self, i);
+				orig(self);
 				return;
 			}
 
@@ -51,7 +56,12 @@ namespace StarlightRiver.Core.Systems.CombatMountSystem
 				}
 			}
 
-			orig(self, i);
+			orig(self);
+		}
+
+		public override void ResetEffects()
+		{
+			combatMountCooldownMultiplier = 1f;
 		}
 
 		public override void PreUpdateMovement() //Updates the active mount's timers and calls their actions.
@@ -93,6 +103,9 @@ namespace StarlightRiver.Core.Systems.CombatMountSystem
 		{
 			if (mountingTime > 0)
 				Player.gfxOffY = Helpers.Helper.LerpFloat(Player.mount.PlayerOffset, 0, 1 - mountingTime / 30f) - (float)Math.Sin(3.14f * (1 - mountingTime / 30f)) * 64;
+
+			if (activeMount is null)
+				mountingTime = 0;
 		}
 
 		public void Dismount()
@@ -106,6 +119,9 @@ namespace StarlightRiver.Core.Systems.CombatMountSystem
 	{
 		public override bool PreDrawInInventory(Item item, SpriteBatch spriteBatch, Vector2 position, Rectangle frame, Color drawColor, Color itemColor, Vector2 origin, float scale)
 		{
+			if (Main.gameMenu)
+				return true;
+
 			bool isValid = (item.DamageType.Type == DamageClass.Summon.Type || item.DamageType.Type == DamageClass.SummonMeleeSpeed.Type) && !Main.LocalPlayer.controlSmart;
 
 			if (!Main.playerInventory && !isValid && Main.LocalPlayer.GetModPlayer<CombatMountPlayer>().activeMount != null)

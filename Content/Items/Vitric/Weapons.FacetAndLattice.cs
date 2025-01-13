@@ -20,15 +20,16 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Facet & Lattice");
-			Tooltip.SetDefault("Right click to guard\nAttacks are empowered after a guard\nEmpowerment is more effective with better guard timing");
+			Tooltip.SetDefault("<right> to guard, blocking damage depending on timing\nAttacks are empowered after a guard, also depending on your guard timing");
 		}
 
 		public override void SetDefaults()
 		{
 			Item.DamageType = DamageClass.Melee;
-			Item.damage = 35;
-			Item.useTime = 35;
-			Item.useAnimation = 35;
+			Item.damage = 37;
+			Item.crit = 6;
+			Item.useTime = 30;
+			Item.useAnimation = 30;
 			Item.width = 32;
 			Item.height = 32;
 			Item.knockBack = 8;
@@ -39,6 +40,8 @@ namespace StarlightRiver.Content.Items.Vitric
 			Item.noMelee = true;
 			Item.noUseGraphic = true;
 			Item.UseSound = SoundID.DD2_MonkStaffSwing;
+
+			Item.value = Item.sellPrice(gold: 2, silver: 75);
 		}
 
 		public override void HoldItem(Player Player)
@@ -103,6 +106,25 @@ namespace StarlightRiver.Content.Items.Vitric
 
 			return true;
 		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.Spear);
+			recipe.AddIngredient<SandstoneChunk>(5);
+			recipe.AddIngredient<VitricOre>(10);
+			recipe.AddIngredient<MagmaCore>();
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
+
+			recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.Trident);
+			recipe.AddIngredient<SandstoneChunk>(5);
+			recipe.AddIngredient<VitricOre>(10);
+			recipe.AddIngredient<MagmaCore>();
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
+		}
 	}
 
 	class FacetProjectile : SpearProjectile, IDrawAdditive
@@ -135,7 +157,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			}
 
 			if (Projectile.timeLeft > (int)(20 * speed) && Projectile.timeLeft < (int)(50 * speed))
-				Projectile.extraUpdates = 8;
+				Projectile.extraUpdates = 1;
 			else
 				Projectile.extraUpdates = 0;
 
@@ -155,12 +177,16 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override bool? CanHitNPC(NPC target)
 		{
 			Player Player = Main.player[Projectile.owner];
+
+			if (target.immune[Projectile.owner] > 0)
+				return false;
+
 			return Projectile.timeLeft < (int)(50 * Player.GetTotalAttackSpeed(DamageClass.Melee)) && target.active && !target.dontTakeDamage && !target.townNPC;
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
-			hitDirection = Main.player[Projectile.owner].direction;
+			modifiers.HitDirectionOverride = Main.player[Projectile.owner].direction;
 
 			if (BuffPower > 0)
 			{
@@ -172,11 +198,11 @@ namespace StarlightRiver.Content.Items.Vitric
 
 				Terraria.Audio.SoundEngine.PlaySound(slot2, Projectile.Center);
 
-				damage = (int)(damage * (1 + BuffPower / 50f));
-				knockback *= 3;
+				modifiers.FinalDamage *= 1 + BuffPower / 25f;
+				modifiers.Knockback *= 3;
 
 				for (int k = 0; k < 20; k++)
-					Dust.NewDustPerfect(Projectile.Center, ModContent.DustType<Dusts.Stamina>(), Vector2.One.RotatedBy(Projectile.rotation + Main.rand.NextFloat(0.2f)) * Main.rand.NextFloat(12), 0, default, 1.5f);
+					Dust.NewDustPerfect(Projectile.Center, ModContent.DustType<Stamina>(), Vector2.One.RotatedBy(Projectile.rotation + Main.rand.NextFloat(0.2f)) * Main.rand.NextFloat(12), 0, default, 1.5f);
 
 				BuffPower = 0;
 			}
@@ -210,10 +236,8 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			foreach (NPC NPC in Main.npc.Where(n => n.active && !n.dontTakeDamage && !n.townNPC && n.life > 0 && Projectile.timeLeft < (int)(50 * Main.player[Projectile.owner].GetTotalAttackSpeed(DamageClass.Melee)) && n.immune[Projectile.owner] <= 0 && n.Hitbox.Intersects(Projectile.Hitbox)))
 			{
-				int zero = 0;
-				float zerof = 0f;
-				bool none = false;
-				ModifyHitNPC(NPC, ref zero, ref zerof, ref none, ref zero);
+				var hit = new NPC.HitModifiers();
+				ModifyHitNPC(NPC, ref hit);
 			}
 		}
 
@@ -236,7 +260,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			if (BuffPower <= 0)
 				return;
 
-			Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/FireTrail").Value;
+			Texture2D tex = Assets.FireTrail.Value;
 			var color = new Color(255, 200, 100);
 
 			var source = new Rectangle((int)(Projectile.timeLeft / 50f * tex.Width / 2), 0, tex.Width / 2, tex.Height);
@@ -288,11 +312,11 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			foreach (NPC NPC in Main.npc.Where(n => n.active && !n.dontTakeDamage && !n.townNPC && n.life > 0 && n.immune[Projectile.owner] <= 0 && n.Hitbox.Intersects(Projectile.Hitbox)))
 			{
-				OnHitNPC(NPC, 0, 0, false);
+				OnHitNPC(NPC, new NPC.HitInfo(), 0);
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			ShieldLife -= target.damage / 2;
 			CombatText.NewText(Projectile.Hitbox, new Color(100, 255, 255), target.damage / 2);
@@ -428,8 +452,8 @@ namespace StarlightRiver.Content.Items.Vitric
 
 			if (Main.LocalPlayer == Main.player[Projectile.owner])
 			{
-				Texture2D barTex = ModContent.Request<Texture2D>(AssetDirectory.GUI + "SmallBar0").Value;
-				Texture2D barTex2 = ModContent.Request<Texture2D>(AssetDirectory.GUI + "SmallBar1").Value;
+				Texture2D barTex = Assets.GUI.SmallBar0.Value;
+				Texture2D barTex2 = Assets.GUI.SmallBar1.Value;
 
 				Vector2 pos = Main.LocalPlayer.Center - Main.screenPosition + new Vector2(0, -36) - barTex.Size() / 2;
 				var target = new Rectangle((int)pos.X + 1, (int)pos.Y - 2, (int)(ShieldLife / 50f * barTex2.Width), barTex2.Height);

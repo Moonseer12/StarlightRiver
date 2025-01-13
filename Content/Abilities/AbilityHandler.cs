@@ -12,7 +12,64 @@ namespace StarlightRiver.Content.Abilities
 {
 	public class AbilityHandler : ModPlayer, IOrderedLoadable
 	{
-		// The Player's active ability.
+		private const int SHARDS_PER_VESSEL = 3;
+
+		private InfusionItem[] infusions = new InfusionItem[Infusion.InfusionSlots];
+		public Dictionary<Type, Ability> unlockedAbilities = new();
+
+		private float stamina;
+		private float staminaMaxBonus;
+		private int staminaRegenCD;
+
+		private Ability activeAbility;
+		private Ability nextAbility;
+
+		public float Priority => 1;
+
+		/// <summary>
+		/// The players effective maximum stamina
+		/// </summary>
+		public float StaminaMax => StaminaMaxDefault + StaminaMaxBonus;
+		public float StaminaMaxDefault => Shards.Count / SHARDS_PER_VESSEL + unlockedAbilities.Count;
+
+		/// <summary>
+		/// The rate at which the player regenerates stamina. One point is equal to 0.05 stamina per second.
+		/// </summary>
+		public int StaminaRegenRate { get; set; }
+
+		/// <summary>
+		/// The maximum amount of infusions the player can equip
+		/// </summary>
+		public int InfusionLimit { get; set; } = 0;
+
+		/// <summary>
+		/// Global stamina cost multiplier. Used to increase or decrease the cost of ALL abilities by a multiplicative value
+		/// </summary>
+		public float StaminaCostMultiplier { get; set; }
+
+		/// <summary>
+		/// Global stamina cost flat modifier. Used to increase or decrease the cost of ALL abilities by a flat value
+		/// </summary>
+		public float StaminaCostBonus { get; set; }
+
+		/// <summary>
+		/// The amount of stamina vessel shards the player has
+		/// </summary>
+		public int ShardCount => Shards.Count;
+
+		/// <summary>
+		/// If the player has unlocked any abilties or not. Used for UI visibility
+		/// </summary>
+		public bool AnyUnlocked => unlockedAbilities.Count > 0;
+
+		/// <summary>
+		/// The stamina vessel shards the player has collected, as each is unique
+		/// </summary>
+		public ShardSet Shards { get; private set; } = new ShardSet();
+
+		/// <summary>
+		/// The player's currently active ability
+		/// </summary>
 		public Ability ActiveAbility
 		{
 			get => activeAbility;
@@ -26,47 +83,26 @@ namespace StarlightRiver.Content.Abilities
 			}
 		}
 
-		// The Player's stamina stats.
-		public float StaminaMax => StaminaMaxDefault + StaminaMaxBonus;
-		public float StaminaMaxDefault => 1 + Shards.Count / shardsPerVessel + unlockedAbilities.Count;
+		/// <summary>
+		/// A flat modifier to the player's max stamina. Can be used to increase or decrease it, but not lower than zero.
+		/// </summary>
 		public float StaminaMaxBonus
 		{
 			get => staminaMaxBonus;
 			set =>
-				// Can't have less than 0 max hp.
+				// Can't have less than 0 max sp.
 				staminaMaxBonus = Math.Max(value, -StaminaMaxDefault);
 		}
+
+		/// <summary>
+		/// The player's base stamina, should only be effected by ability and vessel unlocks.
+		/// </summary>
 		public float Stamina
 		{
 			get => stamina;
 			// Can't have less than 0 or more than max stamina.
 			set => stamina = MathHelper.Clamp(value, 0, StaminaMax);
 		}
-		public float StaminaRegenRate { get; set; }
-		public int InfusionLimit { get; set; } = 0;
-
-		public float StaminaCostMultiplier { get; set; }
-		public float StaminaCostBonus { get; set; }
-
-		public int ShardCount => Shards.Count;
-		public bool AnyUnlocked => unlockedAbilities.Count > 0;
-
-		// Some constants.
-		private const int shardsPerVessel = 3;
-
-		public ShardSet Shards { get; private set; } = new ShardSet();
-
-		// Internal-only information.
-
-		private InfusionItem[] infusions = new InfusionItem[Infusion.InfusionSlots];
-		public Dictionary<Type, Ability> unlockedAbilities = new();
-		private int staminaRegenCD;
-		private float stamina;
-		private float staminaMaxBonus;
-		private Ability activeAbility;
-		private Ability nextAbility;
-
-		public float Priority => 1;
 
 		//for some reason without specifically setting these values to zero with cloneNewInstances => false and contructor,
 		////on a server if someone unlocks or modifies these it will impact newly created characters from then on for that instance
@@ -85,18 +121,33 @@ namespace StarlightRiver.Content.Abilities
 
 		public override void Unload() { }
 
+		/// <summary>
+		/// Internal method for handling an ability unlock, used by the publically exposed generic methods
+		/// </summary>
+		/// <param name="t"></param>
+		/// <param name="ability"></param>
 		private void Unlock(Type t, Ability ability)
 		{
 			unlockedAbilities[t] = ability;
 			ability.User = this;
 		}
 
+		/// <summary>
+		/// Internal method for checking and retrieving an infusion if the player has it on.
+		/// </summary>
+		/// <param name="t"></param>
+		/// <param name="infusion"></param>
+		/// <returns></returns>
 		private bool TryMatchInfusion(Type t, out InfusionItem infusion)
 		{
 			infusion = infusions.FirstOrDefault(i => i?.AbilityType == t);
 			return infusion != null;
 		}
 
+		/// <summary>
+		/// Re-locks an ability for the player. Typically only used for debugging purposes.
+		/// </summary>
+		/// <typeparam name="T">The type of the ability to lock</typeparam>
 		public void Lock<T>() where T : Ability
 		{
 			unlockedAbilities.Remove(typeof(T));
@@ -201,14 +252,23 @@ namespace StarlightRiver.Content.Abilities
 				}
 			}
 
-			return true;
+			return infusions.Count(n => n != null) < InfusionLimit;
 		}
 
+		/// <summary>
+		/// Retrieves the infusion item for the given infusion slot
+		/// </summary>
+		/// <param name="slot">The index of the slot to retrieve</param>
+		/// <returns>The InfusionItem ModItem of the infusion in the given slot, or null if one is not there.</returns>
 		public InfusionItem GetInfusion(int slot)
 		{
 			return slot < 0 || slot >= infusions.Length ? null : infusions[slot];
 		}
 
+		/// <summary>
+		/// Sets the player's stamina regen delay, in ticks. Anything larger than 60 will prevent the player from regenerating stamina untill the time minus 60 expires.
+		/// </summary>
+		/// <param name="cooldownTicks">How long the player's stamina delay is set for</param>
 		public void SetStaminaRegenCD(int cooldownTicks)
 		{
 			staminaRegenCD = Math.Max(staminaRegenCD, cooldownTicks);
@@ -262,7 +322,7 @@ namespace StarlightRiver.Content.Abilities
 		{
 			//Resets the Player's stamina to prevent issues with gaining infinite stamina or stamina regeneration.
 			staminaMaxBonus = 0;
-			StaminaRegenRate = 1 / 60f * 2; // stamina per tick = 1 / 60f * (stamina per second)
+			StaminaRegenRate = 5;
 			StaminaCostMultiplier = 1;
 			StaminaCostBonus = 0;
 
@@ -279,14 +339,30 @@ namespace StarlightRiver.Content.Abilities
 			ActiveAbility = null;
 		}
 
-		public override void OnRespawn(Player Player)
+		public override void OnRespawn()
 		{
 			Stamina = StaminaMax;
 		}
 
 		public override void ProcessTriggers(TriggersSet triggersSet)
 		{
-			// Beyah
+			// Check infusions FIRST so they take precedence
+			foreach (InfusionItem infusion in infusions)
+			{
+				if (infusion == null)
+					continue;
+
+				// If any of the infusions match, they take precedent. This prevents "falling through" to the default ability
+				if (infusion.ability != null && infusion.ability.HotKeyMatch(triggersSet, StarlightRiver.Instance.AbilityKeys))
+				{
+					if (infusion.ability.Available)
+						infusion.ability.Activate(this);
+
+					return;
+				}
+			}
+
+			// Then check the default abilities
 			foreach (Ability ability in unlockedAbilities.Values)
 			{
 				if (ability.Available && ability.HotKeyMatch(triggersSet, StarlightRiver.Instance.AbilityKeys))
@@ -314,7 +390,7 @@ namespace StarlightRiver.Content.Abilities
 				Player.rocketBoots = -1;
 				Player.wings = -1;
 
-				SetStaminaRegenCD(200);
+				SetStaminaRegenCD(60);
 			}
 			else
 			{
@@ -329,6 +405,9 @@ namespace StarlightRiver.Content.Abilities
 			}
 		}
 
+		/// <summary>
+		/// Handles updating the player's stamina values based on their regeneration stat
+		/// </summary>
 		private void UpdateStaminaRegen()
 		{
 			const int cooldownSmoothing = 10;
@@ -342,60 +421,64 @@ namespace StarlightRiver.Content.Abilities
 				staminaRegenCD--;
 
 			// Regen stamina at a speed inversely proportional to the smoothed cooldown
-			Stamina += StaminaRegenRate / (staminaRegenCD / (float)cooldownSmoothing + 1);
+			Stamina += StaminaRegenRate * 0.05f / 60f * (1 - staminaRegenCD / 60f);
 		}
 
+		/// <summary>
+		/// This handles running the updates of the active ability/infusion, and properly dealing with those that have
+		/// expired already.
+		/// </summary>
 		private void UpdateAbilities()
 		{
 			var called = new HashSet<Ability>();
+
+			foreach (Ability ability in unlockedAbilities.Values)
+			{
+				called.Add(ability);
+			}
 
 			// Update infusions
 			foreach (InfusionItem infusion in infusions)
 			{
 				if (infusion == null)
 					continue;
-				infusion.UpdateFixed();
 
-				if (infusion.Ability != null)
+				if (infusion.ability != null)
 				{
-					if (infusion.AbilityType == ActiveAbility?.GetType())
-					{
-						infusion.UpdateActive();
-						if (Main.netMode != NetmodeID.Server)
-							infusion.UpdateActiveEffects();
-					}
-
-					called.Add(infusion.Ability);
+					called.Add(infusion.ability);
+					called.Remove(infusion.BaseAbility);
 				}
 			}
 
-			// Cut out previously called abilities
-			called.SymmetricExceptWith(unlockedAbilities.Values);
-
 			// Update abilities unaffected by infusions
 			foreach (Ability ability in called)
+			{
+				ability.User = this;
 				ability.UpdateFixed();
+			}
 
 			// Update active ability if unaffected by an infusion
 			if (ActiveAbility != null && called.Contains(ActiveAbility))
 			{
 				ActiveAbility.UpdateActive();
-				ActiveAbility.UpdateActiveEffects();
+
+				if (Main.netMode != NetmodeID.Server)
+					ActiveAbility.UpdateActiveEffects();
 
 				if (Main.netMode != NetmodeID.Server && Player == Main.LocalPlayer)
 					NetMessage.SendData(MessageID.PlayerControls, -1, -1, null, Main.LocalPlayer.whoAmI);
 			}
 		}
 
+		/// <summary>
+		/// This handles activation and deactivation of the currently active ability
+		/// </summary>
 		private void UpdateActiveAbilityHooks()
 		{
 			// Call the current ability's deactivation hooks
 			if (activeAbility != null)
 			{
-				if (TryMatchInfusion(activeAbility.GetType(), out InfusionItem infusion))
-					infusion.OnExit();
-				else
-					activeAbility.OnExit();
+				activeAbility.OnExit();
 				activeAbility.Reset();
 			}
 
@@ -408,14 +491,11 @@ namespace StarlightRiver.Content.Abilities
 				nextAbility.ActivationCostBonus = 0;
 
 				// Hooks
-				if (TryMatchInfusion(nextAbility.GetType(), out InfusionItem infusion))
-					infusion.OnActivate();
-				else
-					nextAbility.OnActivate();
+				nextAbility.OnActivate();
 			}
 		}
 
-		public override void OnEnterWorld(Player Player)
+		public override void OnEnterWorld()
 		{
 			var packet = new AbilityProgress(Player.whoAmI, Player.GetHandler());
 			packet.Send();
@@ -426,21 +506,32 @@ namespace StarlightRiver.Content.Abilities
 			ActiveAbility?.ModifyDrawInfo(ref drawInfo);
 		}
 
+		/// <summary>
+		/// This handles calling the visual effect hooks of active abilities
+		/// </summary>
+		/// <param name="Player"></param>
+		/// <param name="spriteBatch"></param>
 		public void PostDrawAbility(Player Player, SpriteBatch spriteBatch)
 		{
 			var called = new HashSet<Ability>();
 
+			foreach (Ability ability in Player.GetHandler().unlockedAbilities.Values)
+			{
+				called.Add(ability);
+			}
+
+			// Update infusions
 			foreach (InfusionItem infusion in Player.GetHandler().infusions)
 			{
 				if (infusion == null)
 					continue;
-				infusion.UpdateFixed();
 
-				if (infusion.Ability != null)
-					called.Add(infusion.Ability);
+				if (infusion.ability != null)
+				{
+					called.Add(infusion.ability);
+					called.Remove(infusion.BaseAbility);
+				}
 			}
-
-			called.SymmetricExceptWith(Player.GetHandler().unlockedAbilities.Values);
 
 			foreach (Ability ability in called)
 				ability.DrawActiveEffects(spriteBatch);

@@ -67,15 +67,15 @@ namespace StarlightRiver.Content.GUI
 			base.Draw(spriteBatch);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, SamplerState.PointClamp, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, SamplerState.PointClamp, default, default, default, Main.UIScaleMatrix);
 
-			foreach (UIElement element in Elements.Where(n => n is EnchantButton))
+			foreach (SmartUIElement element in Elements.Where(n => n is EnchantButton))
 			{
 				(element as EnchantButton).DrawAdditive(spriteBatch);
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, default, Main.UIScaleMatrix);
 
 			if (Main.LocalPlayer.controlHook) //Temporary closing logic
 			{
@@ -83,22 +83,20 @@ namespace StarlightRiver.Content.GUI
 			}
 		}
 
-		public override void Update(GameTime gameTime)
+		public override void SafeUpdate(GameTime gameTime)
 		{
 			if (buttons.Count == 0 && CheckFull())
 				CheckForSets();
 
 			if (!CheckFull())
 			{
-				foreach (UIElement element in buttons)
+				foreach (SmartUIElement element in buttons)
 				{
 					RemoveChild(element);
 				}
 
 				buttons.Clear();
 			}
-
-			base.Update(gameTime);
 		}
 
 		public static bool CheckFull()
@@ -154,14 +152,14 @@ namespace StarlightRiver.Content.GUI
 		}
 	}
 
-	class ArmorSlot : UIElement
+	class ArmorSlot : SmartUIElement
 	{
 		public int animationTimer;
 		public Item Item = new();
 		private readonly int slotIndex;
 
-		private ParticleSystem slotParticles = new(AssetDirectory.GUI + "WhiteCircle", ParticleUpdate);
-		private ParticleSystem leafParticles = new(AssetDirectory.GUI + "OGLeaf", LeafUpdate);
+		private readonly ParticleSystem slotParticles = new(AssetDirectory.GUI + "WhiteCircle", ParticleUpdate);
+		private readonly ParticleSystem leafParticles = new(AssetDirectory.GUI + "OGLeaf", LeafUpdate);
 
 		public ArmorSlot(int index)
 		{
@@ -172,7 +170,7 @@ namespace StarlightRiver.Content.GUI
 			Height.Set(108, 0);
 		}
 
-		public override void Update(GameTime gameTime)
+		public override void SafeUpdate(GameTime gameTime)
 		{
 			Main.LocalPlayer.mouseInterface = true;
 
@@ -201,7 +199,6 @@ namespace StarlightRiver.Content.GUI
 			}
 
 			Recalculate();
-			base.Update(gameTime);
 		}
 
 		public static void ParticleUpdate(Particle particle)
@@ -228,9 +225,9 @@ namespace StarlightRiver.Content.GUI
 
 		public override void Draw(SpriteBatch spriteBatch)
 		{
-			Texture2D closedTex = Request<Texture2D>(AssetDirectory.GUI + "EnchantSlotClosed").Value;
-			Texture2D openTex = Request<Texture2D>(AssetDirectory.GUI + "EnchantSlotOpen").Value;
-			Texture2D iconTex = Request<Texture2D>(AssetDirectory.GUI + "EnchantSlotIcon").Value;
+			Texture2D closedTex = Assets.GUI.EnchantSlotClosed.Value;
+			Texture2D openTex = Assets.GUI.EnchantSlotOpen.Value;
+			Texture2D iconTex = Assets.GUI.EnchantSlotIcon.Value;
 
 			leafParticles.DrawParticles(spriteBatch);
 
@@ -280,7 +277,7 @@ namespace StarlightRiver.Content.GUI
 			slotParticles.DrawParticles(spriteBatch);
 		}
 
-		public override void Click(UIMouseEvent evt)
+		public override void SafeClick(UIMouseEvent evt)
 		{
 			if (Item.IsAir && !Main.mouseItem.IsAir && CheckValid(Main.mouseItem))
 			{
@@ -330,7 +327,7 @@ namespace StarlightRiver.Content.GUI
 		}
 	}
 
-	class EnchantButton : UIElement
+	class EnchantButton : SmartUIElement
 	{
 		private readonly ArmorEnchantment.ArmorEnchantment enchant;
 		private int animationTimer = 0;
@@ -350,7 +347,7 @@ namespace StarlightRiver.Content.GUI
 
 		public void DrawAdditive(SpriteBatch spriteBatch) //batched and drawn in parent
 		{
-			Texture2D tex = Request<Texture2D>("StarlightRiver/Assets/Keys/Glow").Value;
+			Texture2D tex = Assets.Keys.Glow.Value;
 			Vector2 pos = GetDimensions().Center();
 			float scale = 1 + animationTimer / 30f;
 			float opacity = 1 - animationTimer / 30f;
@@ -371,7 +368,7 @@ namespace StarlightRiver.Content.GUI
 			Recalculate();
 		}
 
-		public override void Click(UIMouseEvent evt)
+		public override void SafeClick(UIMouseEvent evt)
 		{
 			if (EnchantmentMenu.TryEnchantSet(enchant.MakeRealCopy()))
 				EnchantmentMenu.CheckForSets();

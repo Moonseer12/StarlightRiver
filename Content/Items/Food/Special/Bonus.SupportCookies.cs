@@ -13,13 +13,18 @@ namespace StarlightRiver.Content.Items.Food.Special
 			ModContent.ItemType<Dough>(),
 			ModContent.ItemType<HealthExtract>(),
 			ModContent.ItemType<ManaExtract>(),
-			ModContent.ItemType<TableSalt>()
+			ModContent.ItemType<Sugar>()
 			);
 		}
 
 		public override void Load()
 		{
 			StarlightItem.OnPickupEvent += BonusHeal;
+		}
+
+		public override void SafeSetDefaults()
+		{
+			Item.value = Item.sellPrice(gold: 5);
 		}
 
 		private bool BonusHeal(Item Item, Player Player)

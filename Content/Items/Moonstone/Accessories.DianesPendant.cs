@@ -20,7 +20,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Diane's Pendant");
-			Tooltip.SetDefault("Something about a crescent idk \n+20 barrier"); //TODO: EGSHELS FIX!!!!!
+			Tooltip.SetDefault("Consuming mana charges a Crescent Guardian, blitzing nearby enemies when fully charged\n+20 {{barrier}}");
 		}
 
 		public override void SetDefaults()
@@ -203,12 +203,11 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 		public override bool PreDraw(ref Color lightColor)
 		{
-			//DrawTrail(Main.spriteBatch);
-
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
-			Texture2D tex = ModContent.Request<Texture2D>(Texture).Value;
-			Texture2D glowTex = ModContent.Request<Texture2D>(Texture + "Glow").Value;
+			Main.spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
+
+			Texture2D tex = Assets.Items.Moonstone.DianeCrescant.Value;
+			Texture2D glowTex = Assets.Items.Moonstone.DianeCrescantGlow.Value;
 
 			for (int k = AfterimageLength; k > 0; k--)
 			{
@@ -220,7 +219,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 			}
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			if (flashTimer < 1)
 			{
@@ -245,7 +244,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 			return base.CanHitNPC(target);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			Player Player = Main.player[Projectile.owner];
 			BarrierPlayer modPlayer = Player.GetModPlayer<BarrierPlayer>();
@@ -311,24 +310,30 @@ namespace StarlightRiver.Content.Items.Moonstone
 		private void ManageTrail()
 		{
 
-			trail ??= new Trail(Main.instance.GraphicsDevice, 15, new TriangularTip(40 * 4), factor => (10 + factor * 25) * MathHelper.Lerp(0.4f, 1f, ChargeRatio), factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				if (factor.X >= 0.96f)
-					return Color.White * 0;
+				trail = new Trail(Main.instance.GraphicsDevice, 15, new NoTip(), factor => (10 + factor * 25) * MathHelper.Lerp(0.4f, 1f, ChargeRatio), factor =>
+							{
+								if (factor.X == 1)
+									return Color.Transparent;
 
-				return new Color(120, 20 + (int)(100 * factor.X), 255) * (float)Math.Sin(factor.X * 3.14f);
-			});
+								return new Color(120, 20 + (int)(100 * factor.X), 255) * (float)Math.Sin(factor.X * 3.14f);
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 15, new TriangularTip(40 * 4), factor => (80 + 0 + factor * 0) * MathHelper.Lerp(0.4f, 1f, ChargeRatio), factor =>
+			if (trail2 is null || trail2.IsDisposed)
 			{
-				if (factor.X >= 0.96f)
-					return Color.White * 0;
+				trail2 = new Trail(Main.instance.GraphicsDevice, 15, new NoTip(), factor => (80 + 0 + factor * 0) * MathHelper.Lerp(0.4f, 1f, ChargeRatio), factor =>
+							{
+								if (factor.X == 1)
+									return Color.Transparent;
 
-				return new Color(100, 20 + (int)(60 * factor.X), 255) * 0.15f * (float)Math.Sin(factor.X * 3.14f);
-			});
+								return new Color(100, 20 + (int)(60 * factor.X), 255) * 0.15f * (float)Math.Sin(factor.X * 3.14f);
+							});
+			}
 
 			trail2.Positions = cache.ToArray();
 			trail2.NextPosition = Projectile.Center + Projectile.velocity;
@@ -432,14 +437,14 @@ namespace StarlightRiver.Content.Items.Moonstone
 			Effect effect = Filters.Scene["DatsuzeiTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.02f);
 			effect.Parameters["repeats"].SetValue(8f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
-			effect.Parameters["sampleTexture2"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/Items/Moonstone/DatsuzeiFlameMap2").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
+			effect.Parameters["sampleTexture2"].SetValue(Assets.Items.Moonstone.DatsuzeiFlameMap2.Value);
 
 			trail?.Render(effect);
 
@@ -447,7 +452,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 			trail2?.Render(effect);
 
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 

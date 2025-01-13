@@ -185,19 +185,22 @@ namespace StarlightRiver.Content.NPCs.Moonstone
 			NPC.frame = new Rectangle(0, yFrame * frameHeight, NPC.width, frameHeight);
 		}
 
-		public override void OnKill()
+		public override void HitEffect(NPC.HitInfo hit)
 		{
-			for (int i = 1; i < 5; i++)
+			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
 			{
-				float angle = i / 4f * 6.28f + rockRotation;
-				Vector2 offset = (angle.ToRotationVector2() * new Vector2(30, 10)).RotatedBy(0.3f * Math.Sin(rockRotation * 0.2f));
+				for (int i = 1; i < 5; i++)
+				{
+					float angle = i / 4f * 6.28f + rockRotation;
+					Vector2 offset = (angle.ToRotationVector2() * new Vector2(30, 10)).RotatedBy(0.3f * Math.Sin(rockRotation * 0.2f));
 
-				Gore.NewGoreDirect(NPC.GetSource_FromThis(), NPC.Center + offset, Main.rand.NextVector2Circular(2, 2), Mod.Find<ModGore>("Dreamprism_Rock" + i.ToString()).Type);
-			}
+					Gore.NewGoreDirect(NPC.GetSource_FromThis(), NPC.Center + offset, Main.rand.NextVector2Circular(2, 2), Mod.Find<ModGore>("Dreamprism_Rock" + i.ToString()).Type);
+				}
 
-			for (int j = 1; j < 6; j++)
-			{
-				Gore.NewGoreDirect(NPC.GetSource_FromThis(), NPC.Center + Main.rand.NextVector2Circular(10, 30), Main.rand.NextVector2Circular(3, 3), Mod.Find<ModGore>("Dreamprism_Gore" + j.ToString()).Type);
+				for (int j = 1; j < 6; j++)
+				{
+					Gore.NewGoreDirect(NPC.GetSource_FromThis(), NPC.Center + Main.rand.NextVector2Circular(10, 30), Main.rand.NextVector2Circular(3, 3), Mod.Find<ModGore>("Dreamprism_Gore" + j.ToString()).Type);
+				}
 			}
 		}
 
@@ -209,14 +212,14 @@ namespace StarlightRiver.Content.NPCs.Moonstone
 			Effect effect = Terraria.Graphics.Effects.Filters.Scene["DatsuzeiTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.02f);
 			effect.Parameters["repeats"].SetValue(8f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
-			effect.Parameters["sampleTexture2"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/Items/Moonstone/DatsuzeiFlameMap2").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
+			effect.Parameters["sampleTexture2"].SetValue(Assets.Items.Moonstone.DatsuzeiFlameMap2.Value);
 
 			trail?.Render(effect);
 
@@ -224,7 +227,7 @@ namespace StarlightRiver.Content.NPCs.Moonstone
 
 			trail2?.Render(effect);
 
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 
 		private void ManageCaches()
@@ -249,9 +252,11 @@ namespace StarlightRiver.Content.NPCs.Moonstone
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 15, new TriangularTip(1), factor => factor * 25 * TRAIL_WIDTH, factor => new Color(120, 20 + (int)(100 * factor.X), 255) * factor.X);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 15, new NoTip(), factor => factor * 25 * TRAIL_WIDTH, factor => new Color(120, 20 + (int)(100 * factor.X), 255) * factor.X);
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 15, new TriangularTip(1), factor => (50 + 0 + factor * 0) * TRAIL_WIDTH, factor => new Color(100, 20 + (int)(60 * factor.X), 255) * factor.X * 0.15f);
+			if (trail2 is null || trail2.IsDisposed)
+				trail2 = new Trail(Main.instance.GraphicsDevice, 15, new NoTip(), factor => (50 + 0 + factor * 0) * TRAIL_WIDTH, factor => new Color(100, 20 + (int)(60 * factor.X), 255) * factor.X * 0.15f);
 
 			if (cache != null)
 			{

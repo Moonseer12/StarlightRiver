@@ -1,6 +1,10 @@
 ﻿using ReLogic.Content;
+using StarlightRiver.Content.Abilities;
 using StarlightRiver.Content.GUI;
+using StarlightRiver.Content.PersistentData;
+using StarlightRiver.Content.Tiles.Blockers;
 using StarlightRiver.Core.Loaders.UILoading;
+using StarlightRiver.Core.Systems.BossRushSystem;
 using System;
 using System.IO;
 using System.Linq;
@@ -9,6 +13,7 @@ using static Terraria.ModLoader.ModContent;
 
 namespace StarlightRiver.Content.Bosses.GlassMiniboss
 {
+	[AutoloadBossHead]
 	public partial class Glassweaver : ModNPC
 	{
 		public static readonly Color GlowDustOrange = new(6255, 108, 0);
@@ -17,19 +22,27 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 		public bool attackVariant = false;
 		public bool disableJumpSound = false;
 
-		float attackType;
-		public Vector2 arenaPos;
+		/// <summary>
+		/// This handles the animations during the NPC spawning phase
+		/// </summary>
+		int summonAnimTime;
+		/// <summary>
+		/// Tracks the animation type to use
+		/// </summary>
+		float animationType;
+		/// <summary>
+		/// Tracks the center off the arena
+		/// </summary>
 
 		internal ref float Phase => ref NPC.ai[0];
 		internal ref float GlobalTimer => ref NPC.ai[1];
 		internal ref float AttackPhase => ref NPC.ai[2];
 		internal ref float AttackTimer => ref NPC.ai[3];
 
+		public Vector2 arenaPos => StarlightWorld.vitricBiome.TopLeft() * 16 + new Vector2(0, 80 * 16) + new Vector2(0, 256);
 		public Rectangle Arena => new((int)arenaPos.X - 35 * 16, (int)arenaPos.Y - 30 * 16, 70 * 16, 30 * 16);
 
 		public override string Texture => AssetDirectory.Glassweaver + Name;
-
-		public override string BossHeadTexture => AssetDirectory.Glassweaver + Name + "_BossHead";
 
 		//Phase tracking utils
 		public enum Phases
@@ -76,7 +89,7 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 		{
 			NPC.width = 82;
 			NPC.height = 75;
-			NPC.lifeMax = 1800;
+			NPC.lifeMax = 2300;
 			NPC.damage = 20;
 			NPC.aiStyle = -1;
 			NPC.noGravity = true;
@@ -84,9 +97,9 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			NPC.boss = true;
 			NPC.defense = 14;
 			NPC.HitSound = SoundID.NPCHit52;
-			Music = MusicLoader.GetMusicSlot(Mod, "Sounds/Music/Miniboss");
+			Music = MusicLoader.GetMusicSlot(Mod, "Sounds/Music/GlassWeaver");
 			NPC.dontTakeDamage = true;
-			NPC.npcSlots = 100;
+			NPC.npcSlots = 10;
 		}
 
 		private SpriteEffects GetSpriteEffects()
@@ -104,13 +117,14 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			return false; //no contact damage!
 		}
 
-		public override void ScaleExpertStats(int numPlayers, float bossLifeScale)
+		public override void ApplyDifficultyAndPlayerScaling(int numPlayers, float balance, float bossAdjustment)
 		{
-			NPC.lifeMax = (int)(2000 * bossLifeScale);
+			NPC.lifeMax = (int)(2800 * bossAdjustment);
 		}
 
 		public override bool CheckDead()
 		{
+			BossRushDataStore.DefeatBoss(BossrushUnlockFlag.Glassweaver);
 			StarlightWorld.Flag(WorldFlags.DesertOpen);
 
 			NPC.life = 1;
@@ -119,28 +133,24 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			return false;
 		}
 
-		public override void OnHitByProjectile(Projectile projectile, int damage, float knockback, bool crit)
-		{
-			Main.NewText($"Boss hit by projectile: [Name: {projectile.ModProjectile?.Name}, Damage: {damage}, Hostile: {projectile.hostile}, Friendly: {projectile.friendly}]");
-		}
-
 		public override void AI()
 		{
+			BlockerLoader.glassweaverBlockers = true;
+
 			AttackTimer++;
 
-			Dust.NewDustPerfect(arenaPos, ModContent.DustType<Dusts.BlueStamina>());
-
-			Dust.NewDustPerfect(PickSpot(), ModContent.DustType<Dusts.Stamina>());
-			Dust.NewDustPerfect(PickCloseSpot(), ModContent.DustType<Dusts.Void>());
-			Dust.NewDustPerfect(PickSpotSelf(), ModContent.DustType<Dusts.LavaSpark>());
+			if (summonAnimTime > 0)
+				summonAnimTime--;
 
 			switch (Phase)
 			{
 				case (int)Phases.SpawnEffects:
 
-					arenaPos = StarlightWorld.vitricBiome.TopLeft() * 16 + new Vector2(0, 80 * 16) + new Vector2(0, 256);
 					Phase = (int)Phases.JumpToBackground;
-					Projectile.NewProjectile(NPC.GetSource_FromThis(), arenaPos + new Vector2(528 + 48, -46), Vector2.Zero, ProjectileType<GlassweaverDoor>(), Main.myPlayer, 0, NPC.target);
+
+					if (Main.netMode != NetmodeID.MultiplayerClient)
+						Projectile.NewProjectile(NPC.GetSource_FromThis(), arenaPos + new Vector2(528 + 48, -46), Vector2.Zero, ProjectileType<GlassweaverDoor>(), Main.myPlayer, 0, NPC.target);
+
 					ResetAttack();
 
 					break;
@@ -149,6 +159,9 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 					if (AttackTimer <= 120)
 					{
+						if (Main.netMode != NetmodeID.Server)
+							RichTextBox.CloseDialogue(); // may accidentially kick players that aren't involved in the fight out of their modal but its probably good enough as is
+
 						SpawnAnimation();
 					}
 					else
@@ -191,8 +204,8 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 				case (int)Phases.ReturnToForeground:
 
-					if (AttackTimer == 1)
-						UILoader.GetUIState<TextCard>().Display("Glassweaver", "Worker of the Anvil", null, 240, 1.2f, false);
+					if (AttackTimer == 1 && Main.netMode != NetmodeID.Server) // Only display in singelplayer or multiplayer client
+						TextCard.Display("Glassweaver", "Worker of the Anvil", 240, 1.2f);
 
 					JumpBackAnimation();
 
@@ -200,6 +213,7 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 				case (int)Phases.DirectPhase:
 
+					NPC.dontTakeDamage = false; // extra failsafe
 					NPC.rotation = MathHelper.Lerp(NPC.rotation, 0, 0.33f);
 
 					if (NPC.velocity.Y > 0f && NPC.collideY && !disableJumpSound)
@@ -216,7 +230,7 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 						AttackPhase++;
 
-						if (AttackPhase > 8)
+						if (AttackPhase > 7)
 							AttackPhase = 0;
 
 						attackVariant = Main.rand.NextBool(2);
@@ -232,47 +246,46 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 					switch (AttackPhase)
 					{
 						case 0:
-							TripleSlash();
+							if (attackVariant)
+								TripleSlash();
+							else
+								MagmaSpearAlt();
 							break;
 
 						case 1:
-							Whirlwind();
-							break;
-
-						case 2:
 							if (attackVariant)
 								MagmaSpear();
 							else
 								JavelinRain();
 							break;
 
-						case 3:
+						case 2:
 							BigBrightBubble();
 							break;
 
-						case 4:
+						case 3:
 							if (attackVariant)
 								GlassRaise();
 							else
 								GlassRaiseAlt();
 							break;
 
-						case 5:
+						case 4:
 							JavelinRain();
 							break;
 
-						case 6:
+						case 5:
 							TripleSlash();
 							break;
 
-						case 7:
+						case 6:
 							if (attackVariant)
 								MagmaSpear();
 							else
 								MagmaSpearAlt();
 							break;
 
-						case 8:
+						case 7:
 							BigBrightBubble();
 							break;
 
@@ -292,6 +305,8 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 					{
 						NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.Center.X, (int)NPC.Center.Y, NPCType<GlassweaverWaiting>(), 0, 0, 3);
 						NPC.active = false;
+
+						StarlightWorld.Flag(WorldFlags.GlassweaverDowned);
 					}
 
 					break;
@@ -300,8 +315,8 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 					if (AttackTimer < 60)
 					{
-						NPC.position.Y -= (AttackTimer - 45) * 0.3f;
-						NPC.scale = 0.75f + AttackTimer / 60f * 0.25f;
+						NPC.position.Y -= (AttackTimer - 45) * 0.25f;
+						//NPC.scale = 0.75f + AttackTimer / 60f * 0.25f;
 					}
 
 					NPC.noGravity = false;
@@ -309,9 +324,11 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 					if (Math.Abs(NPC.Center.X - arenaPos.X) < 5)
 					{
-						NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.Center.X, (int)NPC.Center.Y, NPCType<GlassweaverWaiting>(), 0, 0, 2);
+						NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.Center.X, (int)NPC.Center.Y, NPCType<GlassweaverWaiting>(), 0, 0, StarlightWorld.HasFlag(WorldFlags.DesertOpen) ? 4 : 2);
 						NPC.active = false;
 					}
+
+					BossRushSystem.ForceFail();
 
 					break;
 			}
@@ -326,12 +343,16 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 		public override void SendExtraAI(BinaryWriter writer)
 		{
+			writer.WriteVector2(moveTarget);
 			writer.Write(attackVariant);
+			writer.Write(NPC.direction);
 		}
 
 		public override void ReceiveExtraAI(BinaryReader reader)
 		{
+			moveTarget = reader.ReadVector2();
 			attackVariant = reader.ReadBoolean();
+			NPC.direction = reader.ReadInt32();
 		}
 
 		//i hate this specific thing right here
@@ -341,7 +362,6 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			newNPC.moveTarget = new Vector2();
 			newNPC.moveStart = new Vector2();
 			newNPC.attackVariant = false;
-			newNPC.hammerIndex = -1;
 			newNPC.bubbleIndex = -1;
 			return newNPC;
 		}
@@ -373,6 +393,13 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 			if (NPC.velocity.Y > 0)
 				frame.Y = frameHeight * 2;
 
+			//gauntlet anims
+			if (summonAnimTime > 0)
+			{
+				frame.X = 0;
+				frame.Y = frameHeight * (int)(Math.Sin(summonAnimTime / 60f * 3.14f) * 4);
+			}
+
 			switch (Phase)
 			{
 				case (int)Phases.GlassGauntlet:
@@ -385,7 +412,7 @@ namespace StarlightRiver.Content.Bosses.GlassMiniboss
 
 				case (int)Phases.DirectPhase:
 
-					switch (attackType)
+					switch (animationType)
 					{
 						case (int)AttackTypes.Jump:
 

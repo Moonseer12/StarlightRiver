@@ -15,22 +15,20 @@ namespace StarlightRiver.Content.Items.Hell
 	{
 		public override string Texture => AssetDirectory.HellItem + Name;
 
-		public CharonsObol() : base(ModContent.Request<Texture2D>(AssetDirectory.HellItem + "CharonsObol").Value) { }
-
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Charon's Obol");
-			Tooltip.SetDefault("Converts all dropped money to reflective coins, which ricochet projectiles off themselves\nCoins lose their power when they contact any surface\n'Money is the root of all evil'");
+			Tooltip.SetDefault("Converts all dropped money to ancient coins, which ricochet projectiles off themselves\nCoins lose their power when they contact any surface\n'Soon, may the Ferryman come...'");
 		}
 
 		public override void Load()
 		{
-			On.Terraria.NPC.NPCLoot_DropMoney += SpawnObols;
+			On_NPC.NPCLoot_DropMoney += SpawnObols;
 		}
 
 		public override void Unload()
 		{
-			On.Terraria.NPC.NPCLoot_DropMoney -= SpawnObols;
+			On_NPC.NPCLoot_DropMoney -= SpawnObols;
 		}
 
 		public override void SafeSetDefaults()
@@ -39,7 +37,7 @@ namespace StarlightRiver.Content.Items.Hell
 			Item.rare = ItemRarityID.Orange;
 		}
 
-		private void SpawnObols(On.Terraria.NPC.orig_NPCLoot_DropMoney orig, NPC self, Player closestPlayer)
+		private void SpawnObols(On_NPC.orig_NPCLoot_DropMoney orig, NPC self, Player closestPlayer)
 		{
 			if (!Equipped(closestPlayer))
 			{
@@ -257,24 +255,18 @@ namespace StarlightRiver.Content.Items.Hell
 			}
 		}
 
-		public override void OnHitNPC(NPC hitTarget, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			Projectile.penetrate++;
 
-			if (hitTarget == target)
-			{
-				CameraSystem.shake += 3;
-				Helper.PlayPitched("Impacts/Ricochet", 0.2f, Main.rand.NextFloat(-0.1f, 0.1f), Projectile.Center);
-				ManageCaches();
-				Projectile.velocity = Vector2.Zero;
-				disappeared = true;
-				Projectile.friendly = false;
-				Projectile.timeLeft = 3000;
-			}
-			else
-			{
-				alreadyHit.Add(hitTarget);
-			}
+			CameraSystem.shake += 3;
+			Helper.PlayPitched("Impacts/Ricochet", 0.2f, Main.rand.NextFloat(-0.1f, 0.1f), Projectile.Center);
+			ManageCaches();
+			Projectile.velocity = Vector2.Zero;
+			disappeared = true;
+			Projectile.friendly = false;
+			Projectile.timeLeft = 3000;
+			alreadyHit.Add(target);
 		}
 
 		public override bool? CanHitNPC(NPC hitTarget)
@@ -310,7 +302,7 @@ namespace StarlightRiver.Content.Items.Hell
 
 		public override bool PreDraw(ref Color lightColor)
 		{
-			Texture2D bloom = ModContent.Request<Texture2D>(AssetDirectory.Keys + "GlowAlpha").Value;
+			Texture2D bloom = Assets.Keys.GlowAlpha.Value;
 			Color bloomColor = TrailColor;
 			bloomColor.A = 0;
 
@@ -326,7 +318,7 @@ namespace StarlightRiver.Content.Items.Hell
 				return false;
 
 			Color coinColor = bouncedOff ? lightColor : Color.White;
-			Texture2D tex = ModContent.Request<Texture2D>(Texture).Value;
+			Texture2D tex = Assets.Items.Hell.CharonsObol.Value;
 			int frameHeight = tex.Height / Main.projFrames[Projectile.type];
 			var frameBox = new Rectangle(0, frameHeight * Projectile.frame, tex.Width, frameHeight);
 
@@ -335,7 +327,7 @@ namespace StarlightRiver.Content.Items.Hell
 			if (flashTimer <= 0)
 				return false;
 
-			Texture2D whiteTex = ModContent.Request<Texture2D>(AssetDirectory.HellItem + "ObolFlash").Value;
+			Texture2D whiteTex = Assets.Items.Hell.ObolFlash.Value;
 			Main.spriteBatch.Draw(whiteTex, Projectile.Center - Main.screenPosition, frameBox, Color.White * (flashTimer / 15f), Projectile.rotation, frameBox.Size() / 2, Projectile.scale, SpriteEffects.None, 0f);
 
 			return false;
@@ -368,6 +360,9 @@ namespace StarlightRiver.Content.Items.Hell
 
 		private void ManageCaches()
 		{
+			if (Main.netMode == NetmodeID.Server)
+				return;
+
 			if (cache == null)
 			{
 				cache = new List<Vector2>();
@@ -384,10 +379,14 @@ namespace StarlightRiver.Content.Items.Hell
 
 		private void ManageTrail()
 		{
+			if (Main.netMode == NetmodeID.Server)
+				return;
 
-			trail ??= new Trail(Main.instance.GraphicsDevice, TRAILLENGTH, new NoTip(), factor => trailWidth * 3f, factor => TrailColor);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, TRAILLENGTH, new NoTip(), factor => trailWidth * 3f, factor => TrailColor);
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, TRAILLENGTH, new NoTip(), factor => trailWidth * 1.5f, factor => Color.White * 0.75f);
+			if (trail2 is null || trail2.IsDisposed)
+				trail2 = new Trail(Main.instance.GraphicsDevice, TRAILLENGTH, new NoTip(), factor => trailWidth * 1.5f, factor => Color.White * 0.75f);
 
 			trail.Positions = cache.ToArray();
 			trail2.Positions = cache.ToArray();
@@ -404,11 +403,11 @@ namespace StarlightRiver.Content.Items.Hell
 			Effect effect = Filters.Scene["OrbitalStrikeTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			effect.Parameters["alpha"].SetValue(trailWidth / 4f);
 
 			trail?.Render(effect);

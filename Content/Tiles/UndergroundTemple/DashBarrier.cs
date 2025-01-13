@@ -1,5 +1,6 @@
 ﻿using StarlightRiver.Content.Abilities;
 using StarlightRiver.Content.Dusts;
+using StarlightRiver.Core.Systems;
 using StarlightRiver.Core.Systems.DummyTileSystem;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
@@ -8,7 +9,7 @@ namespace StarlightRiver.Content.Tiles.UndergroundTemple
 {
 	class DashBarrier : DummyTile
 	{
-		public override int DummyType => ProjectileType<DashBarrierDummy>();
+		public override int DummyType => DummySystem.DummyType<DashBarrierDummy>();
 
 		public override string Texture => AssetDirectory.UndergroundTempleTile + Name;
 
@@ -32,26 +33,37 @@ namespace StarlightRiver.Content.Tiles.UndergroundTemple
 
 			base.SafeNearbyEffects(i, j, closer);
 		}
+
+		public override bool CanDrop(int i, int j)
+		{
+			return false;
+		}
 	}
 
 	internal class DashBarrierDummy : Dummy
 	{
+		public override bool DoesCollision => true;
+
 		public DashBarrierDummy() : base(TileType<DashBarrier>(), 32, 48) { }
 
 		public override void Collision(Player Player)
 		{
-			if (AbilityHelper.CheckDash(Player, Projectile.Hitbox))
+			if (AbilityHelper.CheckDash(Player, Hitbox))
 			{
-				WorldGen.KillTile(ParentX, ParentY);
-				NetMessage.SendTileSquare(Player.whoAmI, (int)(Projectile.position.X / 16f), (int)(Projectile.position.Y / 16f), 2, 3, TileChangeType.None);
+				if (Main.myPlayer == Player.whoAmI)
+				{
+					WorldGen.KillTile(ParentX, ParentY);
+					NetMessage.SendTileSquare(Player.whoAmI, (int)(position.X / 16f), (int)(position.Y / 16f), 2, 3, TileChangeType.None);
+				}
 
-				Terraria.Audio.SoundEngine.PlaySound(SoundID.Tink, Projectile.Center);
+				Terraria.Audio.SoundEngine.PlaySound(SoundID.Tink, Center);
 			}
 		}
 	}
 
+	[SLRDebug]
 	public class DashBarrierItem : QuickTileItem
 	{
-		public DashBarrierItem() : base("Dash Barrier", "Debug Item", "DashBarrier", -12, AssetDirectory.UndergroundTempleTile) { }
+		public DashBarrierItem() : base("Dash Barrier", "{{Debug}} Item", "DashBarrier", -12, AssetDirectory.UndergroundTempleTile) { }
 	}
 }

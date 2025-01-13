@@ -27,7 +27,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Refractive Blade");
-			Tooltip.SetDefault("Hold RMB down to charge a laser\nEnemies struck by the laser have 25% increased melee Exposure");
+			Tooltip.SetDefault("Hold <right> to charge a laser\nThe laser inflicts {{BUFF:RefractiveBladeBuff}}, increasing their melee {{Exposure}}");
 		}
 
 		public override void SetDefaults()
@@ -42,11 +42,12 @@ namespace StarlightRiver.Content.Items.Vitric
 			Item.noMelee = true;
 			Item.knockBack = 7;
 			Item.useTurn = false;
-			Item.value = Item.sellPrice(0, 2, 20, 0);
 			Item.rare = ItemRarityID.Orange;
 			Item.shoot = ProjectileType<RefractiveBladeProj>();
 			Item.shootSpeed = 0.1f;
 			Item.noUseGraphic = true;
+
+			Item.value = Item.sellPrice(gold: 2, silver: 75);
 		}
 
 		public override void HoldItem(Player Player)
@@ -79,6 +80,17 @@ namespace StarlightRiver.Content.Items.Vitric
 				combo = 0;
 
 			return false;
+		}
+
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient<VitricSword>();
+			recipe.AddIngredient<SandstoneChunk>(5);
+			recipe.AddIngredient<VitricOre>(15);
+			recipe.AddIngredient<MagmaCore>();
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
 		}
 	}
 
@@ -173,11 +185,11 @@ namespace StarlightRiver.Content.Items.Vitric
 				 n.immune[Owner.whoAmI] <= 0 &&
 				 Colliding(new Rectangle(), n.Hitbox) == true))
 			{
-				OnHitNPC(NPC, 0, 0, false);
+				OnHitNPC(NPC, new NPC.HitInfo() { Damage = 0 }, 0);
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.velocity += Vector2.UnitX.RotatedBy((target.Center - Owner.Center).ToRotation()) * 10 * target.knockBackResist;
 
@@ -264,13 +276,16 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 10, new TriangularTip(40 * 4), factor => factor * (50 + 40 * Timer / maxTime), factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				if (factor.X >= 0.8f)
-					return Color.White * 0;
+				trail = new Trail(Main.instance.GraphicsDevice, 10, new NoTip(), factor => factor * (50 + 40 * Timer / maxTime), factor =>
+							{
+								if (factor.X == 1)
+									return Color.Transparent;
 
-				return new Color(255, 120 + (int)(factor.X * 70), 80) * (factor.X * SinProgress);
-			});
+								return new Color(255, 120 + (int)(factor.X * 70), 80) * (factor.X * SinProgress);
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Vector2.Lerp(Projectile.Center, Owner.Center, 0.15f) + Projectile.velocity;
@@ -281,13 +296,13 @@ namespace StarlightRiver.Content.Items.Vitric
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount);
 			effect.Parameters["repeats"].SetValue(2f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 
 			trail?.Render(effect);
 		}
@@ -396,7 +411,7 @@ namespace StarlightRiver.Content.Items.Vitric
 				 !n.townNPC &&
 				 Colliding(new Rectangle(), n.Hitbox) == true))
 			{
-				OnHitNPC(NPC, 0, 0, false);
+				OnHitNPC(NPC, new NPC.HitInfo() { Damage = 0 }, 0);
 			}
 		}
 
@@ -411,7 +426,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			return false;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.velocity += Vector2.UnitX.RotatedBy(LaserRotation) * 0.25f * target.knockBackResist;
 
@@ -457,7 +472,7 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		private void DrawRing(SpriteBatch sb, Vector2 pos, float w, float h, float rotation, float prog, Color color)
 		{
-			Texture2D texRing = Request<Texture2D>(AssetDirectory.VitricItem + "BossBowRing").Value;
+			Texture2D texRing = Assets.Items.Vitric.BossBowRing.Value;
 			Effect effect = Filters.Scene["BowRing"].GetShader().Shader;
 
 			effect.Parameters["uTime"].SetValue(rotation);
@@ -467,13 +482,13 @@ namespace StarlightRiver.Content.Items.Vitric
 			effect.Parameters["uOpacity"].SetValue(prog);
 
 			sb.End();
-			sb.Begin(default, BlendState.Additive, default, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
+			sb.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, effect, Main.GameViewMatrix.TransformationMatrix);
 
 			Rectangle target = toRect(pos, (int)(10 * (w + prog)), (int)(30 * (h + prog)));
 			sb.Draw(texRing, target, null, color * prog, Projectile.rotation - 1.57f / 2, texRing.Size() / 2, 0, 0);
 
 			sb.End();
-			sb.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			sb.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 
 		private Rectangle toRect(Vector2 pos, int w, int h)
@@ -489,9 +504,9 @@ namespace StarlightRiver.Content.Items.Vitric
 			int sin = (int)(Math.Sin(StarlightWorld.visualTimer * 3) * 40f); //Just a copy/paste of the boss laser. Need to tune this later
 			var color = new Color(255, 160 + sin, 40 + sin / 2);
 
-			Texture2D texBeam = Request<Texture2D>(AssetDirectory.MiscTextures + "BeamCore").Value;
-			Texture2D texBeam2 = Request<Texture2D>(AssetDirectory.MiscTextures + "BeamTrail").Value;
-			Texture2D texDark = Request<Texture2D>(AssetDirectory.MiscTextures + "GradientBlack").Value;
+			Texture2D texBeam = Assets.Misc.BeamCore.Value;
+			Texture2D texBeam2 = Assets.Misc.BeamTrail.Value;
+			Texture2D texDark = Assets.Misc.GradientBlack.Value;
 
 			var origin = new Vector2(0, texBeam.Height / 2);
 			var origin2 = new Vector2(0, texBeam2.Height / 2);
@@ -501,7 +516,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			effect.Parameters["uColor"].SetValue(color.ToVector3());
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, effect, Main.GameViewMatrix.TransformationMatrix);
 
 			float height = texBeam.Height / 4f;
 			int width = (int)(Projectile.Center - endPoint).Length() - 76;
@@ -534,7 +549,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			float opacity = height / (texBeam.Height / 2f) * 0.75f;
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			if (Owner == Main.LocalPlayer)
 			{
@@ -543,11 +558,11 @@ namespace StarlightRiver.Content.Items.Vitric
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
-			Texture2D impactTex = Request<Texture2D>(AssetDirectory.Assets + "Keys/GlowSoft").Value;
-			Texture2D impactTex2 = Request<Texture2D>(AssetDirectory.GUI + "ItemGlow").Value;
-			Texture2D glowTex = Request<Texture2D>(AssetDirectory.Assets + "GlowTrail").Value;
+			Texture2D impactTex = Assets.Keys.GlowSoft.Value;
+			Texture2D impactTex2 = Assets.GUI.ItemGlow.Value;
+			Texture2D glowTex = Assets.GlowTrail.Value;
 
 			spriteBatch.Draw(glowTex, target, source, color * 0.95f, LaserRotation, new Vector2(0, glowTex.Height / 2), 0, 0);
 
@@ -573,30 +588,30 @@ namespace StarlightRiver.Content.Items.Vitric
 	{
 		public override string Texture => AssetDirectory.Buffs + "RefractiveBladeBuff";
 
-		public RefractiveBladeBuff() : base("Melting", "Taking additional melee damage!", true) { }
+		public RefractiveBladeBuff() : base("Melting", "Effected entities have 25% exposure to melee damage, and take an additional 50% more damage from the refractive blade", true) { }
 
 		public override void Load()
 		{
-			StarlightNPC.ModifyHitByProjectileEvent += IncreaseRefractiveDamage;
+			StarlightNPC.ModifyHitByProjectileEvent += IncreaseRefractiveDamages;
 		}
 
 		public override void Update(NPC NPC, ref int buffIndex)
 		{
-			Dust.NewDust(NPC.position, NPC.width, NPC.height, DustType<Dusts.Glow>(), 0, 0, 0, new Color(255, 150, 50), 0.5f);
+			Dust.NewDust(NPC.position, NPC.width, NPC.height, DustType<Glow>(), 0, 0, 0, new Color(255, 150, 50), 0.5f);
 			NPC.GetGlobalNPC<ExposureNPC>().ExposureMultMelee += 0.25f;
 		}
 
 		public override void Update(Player player, ref int buffIndex)
 		{
-			player.GetModPlayer<ExposurePlayer>().exposureMult += 0.5f;
+			player.GetModPlayer<ExposurePlayer>().exposureMult += 0.25f;
 		}
 
-		private void IncreaseRefractiveDamage(NPC NPC, Projectile Projectile, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		private void IncreaseRefractiveDamages(NPC NPC, Projectile Projectile, ref NPC.HitModifiers modifiers)
 		{
 			if (Inflicted(NPC))
 			{
 				if (Projectile.type == ProjectileType<RefractiveBladeProj>())
-					damage = (int)(damage * 1.5f);
+					modifiers.FinalDamage *= 1.5f;
 			}
 		}
 	}

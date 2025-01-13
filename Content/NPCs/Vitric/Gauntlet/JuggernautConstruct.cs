@@ -2,6 +2,7 @@
 using StarlightRiver.Core.Systems.CameraSystem;
 using System;
 using System.Linq;
+using Terraria.Audio;
 using Terraria.DataStructures;
 using Terraria.GameContent.Bestiary;
 using Terraria.ID;
@@ -50,11 +51,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			NPC.lifeMax = 350;
 			NPC.value = 0f;
 			NPC.knockBackResist = 0f;
-			NPC.HitSound = SoundID.Item27 with
-			{
-				Pitch = -0.3f
-			};
-			NPC.DeathSound = SoundID.Shatter;
+			NPC.HitSound = new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Impacts/IceHit") with { Pitch = -0.3f, PitchVariance = 0.3f };
+			NPC.DeathSound = new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Impacts/EnergyBreak") with { Pitch = -0.3f, PitchVariance = 0.3f };
 		}
 
 		public override void OnSpawn(IEntitySource source)
@@ -126,13 +124,12 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				spriteBatch.Draw(glowTex, offset + slopeOffset + NPC.Center - screenPos, NPC.frame, Color.White, NPC.rotation, origin, NPC.scale * 2, effects, 0f);
 		}
 
-		public override void OnKill()
+		public override void HitEffect(NPC.HitInfo hit)
 		{
-			if (Main.netMode != NetmodeID.Server)
+			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
 			{
 				for (int i = 0; i < 9; i++)
 					Dust.NewDustPerfect(NPC.position + new Vector2(Main.rand.Next(NPC.width), Main.rand.Next(NPC.height)), DustType<Dusts.Cinder>(), Main.rand.NextVector2Circular(3, 3), 0, new Color(255, 150, 50), Main.rand.NextFloat(0.75f, 1.25f)).noGravity = false;
-
 				for (int k = 1; k <= 12; k++)
 					Gore.NewGoreDirect(NPC.GetSource_Death(), NPC.position + new Vector2(Main.rand.Next(NPC.width), Main.rand.Next(NPC.height)), Main.rand.NextVector2Circular(3, 3), Mod.Find<ModGore>("ConstructGore" + k).Type);
 				for (int j = 1; j <= 3; j++)
@@ -274,9 +271,12 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 							launchTarget.velocity.Y = -6;
 							launchTarget.velocity.X = NPC.direction * 18;
 
-							Vector2 ringVel = NPC.DirectionTo(launchTarget.Center);
-							var ring = Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), NPC.Center + ringVel * 35, ringVel, ProjectileType<Items.Vitric.IgnitionGauntlets.IgnitionGauntletsImpactRing>(), 0, 0, Target.whoAmI, Main.rand.Next(35, 45), ringVel.ToRotation());
-							ring.extraUpdates = 0;
+							if (Main.netMode != NetmodeID.MultiplayerClient)
+							{
+								Vector2 ringVel = NPC.DirectionTo(launchTarget.Center);
+								var ring = Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), NPC.Center + ringVel * 35, ringVel, ProjectileType<Items.Vitric.IgnitionGauntlets.IgnitionGauntletsImpactRing>(), 0, 0, Target.whoAmI, Main.rand.Next(35, 45), ringVel.ToRotation());
+								ring.extraUpdates = 0; // This isn't actually being synced but its such a minor visual effect it may not be worth it
+							}
 						}
 					}
 					else
@@ -324,18 +324,22 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 			spikePositionY += 32;
 
-			var spikePos = new Vector2(spikePositionX, spikePositionY);
-			var raise = Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), spikePos, Vector2.Zero, ProjectileType<GlassRaiseSpike>(), (int)(NPC.damage * (Main.expertMode || Main.masterMode ? 0.3f : 1)), 1f, Main.myPlayer, -20, 1 - spikeCounter / 30f);
-			raise.direction = NPC.spriteDirection;
-			raise.scale = 0.65f;
+			//TODO: check non synced raise params
+			if (Main.netMode != NetmodeID.MultiplayerClient)
+			{
+				var spikePos = new Vector2(spikePositionX, spikePositionY);
+				var raise = Projectile.NewProjectileDirect(NPC.GetSource_FromAI(), spikePos, Vector2.Zero, ProjectileType<GlassRaiseSpike>(), (int)(NPC.damage * (Main.expertMode || Main.masterMode ? 0.3f : 1)), 1f, Main.myPlayer, -20, 1 - spikeCounter / 30f);
+				raise.direction = NPC.spriteDirection;
+				raise.scale = 0.65f;
 
-			raise.position.X += (1 - raise.scale) * (raise.width / 2); //readjusting width to match scale
-			raise.width = (int)(raise.width * raise.scale);
+				raise.position.X += (1 - raise.scale) * (raise.width / 2); //readjusting width to match scale
+				raise.width = (int)(raise.width * raise.scale);
+			}
 		}
 		public override void DrawHealingGlow(SpriteBatch spriteBatch)
 		{
 			spriteBatch.End();
-			spriteBatch.Begin(default, BlendState.Additive, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			Texture2D tex = Request<Texture2D>(Texture).Value;
 			float sin = 0.5f + (float)Math.Sin(Main.timeForVisualEffects * 0.04f) * 0.5f;
@@ -344,14 +348,14 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			for (int i = 0; i < 8; i++)
 			{
 				float rad = i * 6.28f / 8;
-				Vector2 offset = Vector2.UnitX.RotatedBy(rad) * distance;
+				Vector2 offset = Vector2.UnitX.RotatedBy(rad) * distance + NPC.netOffset;
 				Color color = Color.OrangeRed * (1.75f - sin) * 0.7f;
 
 				DrawConstruct(tex, null, spriteBatch, Main.screenPosition, color, offset, false);
 			}
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 
 		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)

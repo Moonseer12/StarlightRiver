@@ -1,3 +1,4 @@
+using StarlightRiver.Content.Biomes;
 using StarlightRiver.Content.Dusts;
 using StarlightRiver.Content.NPCs.Permafrost;
 using StarlightRiver.Core.Systems.MetaballSystem;
@@ -16,7 +17,7 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 		public bool HasAuroraWater
 		{
 			get => (PackedData & 0b00000001) == 1;
-			set => PackedData = (byte)(~PackedData & (value ? 1 : 0));
+			set => PackedData = (byte)(value ? PackedData | 0x01 : PackedData & ~0x01);
 		}
 
 		public int AuroraWaterFrameX
@@ -34,14 +35,21 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 
 	class AuroraWaterSystem : ModSystem
 	{
-		public static ScreenTarget auroraTarget = new(DrawAuroraTarget, () => true, 1);
-		public static ScreenTarget auroraBackTarget = new(DrawAuroraBackTarget, () => true, 1);
+		public static int visCounter = 0;
+		public static bool Visible => visCounter > 0 || Main.LocalPlayer.InModBiome(ModContent.GetInstance<PermafrostTempleBiome>());
+
+		public static ScreenTarget auroraTarget;
+		public static ScreenTarget auroraBackTarget;
+
+		public static bool failedLoad = false;
 
 		public float Priority => 1;
 
 		public override void Load()
 		{
-			On.Terraria.Main.DrawInfernoRings += DrawAuroraWater;
+			On_Main.DrawInfernoRings += DrawAuroraWater;
+			auroraTarget = new(DrawAuroraTarget, () => Visible, 1);
+			auroraBackTarget = new(DrawAuroraBackTarget, () => Visible, 1);
 		}
 
 		public static void DrawToMetaballTarget()
@@ -58,7 +66,7 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 						if (tileData.HasAuroraWater)
 						{
 							var target = new Rectangle((int)(i * 16 - Main.screenPosition.X) / 2, (int)(j * 16 - Main.screenPosition.Y) / 2, 8, 8);
-							Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.Assets + "Misc/AuroraWater").Value;
+							Texture2D tex = Assets.Misc.AuroraWater.Value;
 							Main.spriteBatch.Draw(tex, target, new Rectangle(tileData.AuroraWaterFrameX * 18, tileData.AuroraWaterFrameY * 18, 16, 16), Color.White);
 						}
 					}
@@ -69,7 +77,7 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 		private static void DrawAuroraTarget(SpriteBatch sb)
 		{
 			sb.End();
-			sb.Begin(default, BlendState.Additive, SamplerState.PointWrap, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			sb.Begin(default, BlendState.Additive, SamplerState.PointWrap, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			Texture2D tex2 = ModContent.Request<Texture2D>("StarlightRiver/Assets/Misc/AuroraWaterMap", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
 
@@ -101,7 +109,7 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 		private static void DrawAuroraBackTarget(SpriteBatch sb)
 		{
 			sb.End();
-			sb.Begin(default, BlendState.Additive, SamplerState.PointWrap, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			sb.Begin(default, BlendState.Additive, SamplerState.PointWrap, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			Main.graphics.GraphicsDevice.Clear(Color.Transparent);
 
@@ -135,10 +143,15 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 			sb.Begin();
 		}
 
-		private void DrawAuroraWater(On.Terraria.Main.orig_DrawInfernoRings orig, Main self)
+		private void DrawAuroraWater(On_Main.orig_DrawInfernoRings orig, Main self)
 		{
 			orig(self);
-			AuroraWaterTileMetaballs.DrawSpecial();
+
+			if (Visible)
+			{
+				AuroraWaterTileMetaballs.DrawSpecial();
+				visCounter--;
+			}
 		}
 
 		public static void PlaceAuroraWater(int i, int j)
@@ -224,6 +237,13 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 
 		public override unsafe void SaveWorldData(TagCompound tag)
 		{
+			if (failedLoad)
+			{
+				Mod.Logger.Info("Did not save aurora water data as it previously failed to load.");
+				failedLoad = false;
+				return;
+			}
+
 			AuroraWaterData[] myData = Main.tile.GetData<AuroraWaterData>();
 			byte[] data = new byte[myData.Length];
 
@@ -243,6 +263,13 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 			AuroraWaterData[] targetData = Main.tile.GetData<AuroraWaterData>();
 			byte[] data = tag.GetByteArray("tileData");
 
+			if (targetData.Length != data.Length)
+			{
+				Mod.Logger.Error($"Failed to load aurora water raw data, saved data was of incorrect size. Loaded data was {data.Length}, expected {targetData.Length}. Aurora water will not be loaded.");
+				failedLoad = true;
+				return;
+			}
+
 			fixed (AuroraWaterData* ptr = targetData)
 			{
 				byte* bytePtr = (byte*)ptr;
@@ -253,9 +280,18 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 		}
 	}
 
+	class AuroraWaterGlobalTile : GlobalTile
+	{
+		public override void NearbyEffects(int i, int j, int type, bool closer)
+		{
+			if (Main.tile[i, j].Get<AuroraWaterData>().HasAuroraWater)
+				AuroraWaterSystem.visCounter = 30;
+		}
+	}
+
 	class AuroraWaterTileMetaballs : MetaballActor
 	{
-		public override bool Active => !Main.LocalPlayer.InModBiome(ModContent.GetInstance<Content.Biomes.PermafrostTempleBiome>());
+		public override bool Active => AuroraWaterSystem.Visible && !Main.LocalPlayer.InModBiome(ModContent.GetInstance<Content.Biomes.PermafrostTempleBiome>());
 
 		public override Color OutlineColor => new(255, 0, 255);
 
@@ -263,7 +299,7 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 		{
 			AuroraWaterSystem.DrawToMetaballTarget();
 
-			Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.MiscItem + "MagmaGunProj").Value;
+			Texture2D tex = Assets.Items.Misc.MagmaGunProj.Value;
 
 			spriteBatch.End();
 			spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.Default, RasterizerState.CullNone);
@@ -286,13 +322,21 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 
 		public static void DrawSpecial()
 		{
-			if (!MetaballSystem.MetaballSystem.Actors.FirstOrDefault(n => n is AuroraWaterTileMetaballs).Active)
+			MetaballSystem.MetaballSystem.actorsSem.WaitOne();
+
+			if (!MetaballSystem.MetaballSystem.actors.FirstOrDefault(n => n is AuroraWaterTileMetaballs).Active)
+			{
+				MetaballSystem.MetaballSystem.actorsSem.Release();
 				return;
+			}
 
 			Effect shader = Terraria.Graphics.Effects.Filters.Scene["AuroraWaterShader"].GetShader().Shader;
 
 			if (shader is null)
+			{
+				MetaballSystem.MetaballSystem.actorsSem.Release();
 				return;
+			}
 
 			shader.Parameters["time"].SetValue(StarlightWorld.visualTimer);
 			shader.Parameters["screenSize"].SetValue(new Vector2(Main.screenWidth, Main.screenHeight));
@@ -300,13 +344,15 @@ namespace StarlightRiver.Core.Systems.AuroraWaterSystem
 			shader.Parameters["sampleTexture2"].SetValue(AuroraWaterSystem.auroraBackTarget.RenderTarget);
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.Additive, default, default, default, shader);
+			Main.spriteBatch.Begin(default, BlendState.Additive, Main.DefaultSamplerState, default, RasterizerState.CullNone, shader, Main.GameViewMatrix.TransformationMatrix);
 
-			Texture2D target = MetaballSystem.MetaballSystem.Actors.FirstOrDefault(n => n is AuroraWaterTileMetaballs).Target.RenderTarget;
+			Texture2D target = MetaballSystem.MetaballSystem.actors.FirstOrDefault(n => n is AuroraWaterTileMetaballs).Target.RenderTarget;
 			Main.spriteBatch.Draw(target, Vector2.Zero, null, Color.White, 0, Vector2.Zero, 2, 0, 0);
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(0, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
+			Main.spriteBatch.Begin(0, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+
+			MetaballSystem.MetaballSystem.actorsSem.Release();
 		}
 
 		public override bool PostDraw(SpriteBatch spriteBatch, Texture2D target)

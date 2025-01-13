@@ -21,7 +21,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 
 		private int fireCounter = 0;
 
-		private Player Player => Main.player[Projectile.owner];
+		private Player Owner => Main.player[Projectile.owner];
 
 		public override string Texture => AssetDirectory.SteampunkItem + "JetwelderJumper";
 
@@ -172,10 +172,10 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 
 		private void FireMissle(NPC target)
 		{
-			if (target != default)
+			if (target != default && Owner.whoAmI == Main.myPlayer)
 			{
 				Vector2 vel = ArcVelocityHelper.GetArcVel(Projectile.Center, target.Center, 0.25f, 300, 600);
-				Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, vel, ModContent.ProjectileType<JetwelderJumperMissle>(), Projectile.damage * 2, Projectile.knockBack, Player.whoAmI, target.whoAmI);
+				Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, vel, ModContent.ProjectileType<JetwelderJumperMissle>(), Projectile.damage * 2, Projectile.knockBack, Owner.whoAmI, target.whoAmI);
 			}
 		}
 	}
@@ -225,8 +225,11 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			if (Projectile.frame == 0)
 				Lighting.AddLight(Projectile.Center, Color.Red.ToVector3() * 0.7f);
 
-			ManageCaches();
-			ManageTrail();
+			if (Main.netMode != NetmodeID.Server)
+			{
+				ManageCaches();
+				ManageTrail();
+			}
 		}
 
 		public override bool PreDraw(ref Color lightColor)
@@ -284,7 +287,7 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			victim = target;
 		}
@@ -310,11 +313,14 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 10, new TriangularTip(4), factor => 4, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				Color trailColor = Color.White;
-				return trailColor * 0.3f;
-			});
+				trail = new Trail(Main.instance.GraphicsDevice, 10, new NoTip(), factor => 4, factor =>
+							{
+								Color trailColor = Color.White;
+								return trailColor * 0.3f;
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -326,15 +332,15 @@ namespace StarlightRiver.Content.Items.SteampunkSet
 			Effect effect = Filters.Scene["CoachBombTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/MotionTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.MotionTrail.Value);
 
 			trail?.Render(effect);
 
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 

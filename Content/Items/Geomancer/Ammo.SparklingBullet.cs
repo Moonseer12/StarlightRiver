@@ -13,7 +13,7 @@ namespace StarlightRiver.Content.Items.Geomancer
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Sparkling Bullet");
-			Tooltip.SetDefault("Regenerates on a successful hit");
+			Tooltip.SetDefault("Restored on a successful hit");
 		}
 
 		public override void SetDefaults()
@@ -23,7 +23,7 @@ namespace StarlightRiver.Content.Items.Geomancer
 			Item.value = Item.sellPrice(copper: 10);
 			Item.rare = ItemRarityID.Orange;
 
-			Item.maxStack = 20;
+			Item.maxStack = 9999;
 			Item.damage = 20;
 			Item.knockBack = 1.5f;
 
@@ -100,7 +100,7 @@ namespace StarlightRiver.Content.Items.Geomancer
 				SparklingBullet.bulletsConsumed--;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (SparklingBullet.bulletsConsumed > 0 && Main.LocalPlayer == Player)
 			{

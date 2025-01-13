@@ -60,9 +60,10 @@ namespace StarlightRiver.Content.Items.Starwood
 			Projectile.velocity = Projectile.velocity.RotatedBy(Math.Sin(Projectile.timeLeft * 0.2f) * Projectile.ai[0]);
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
-			target.GetGlobalNPC<StarwoodScoreCounter>().AddScore(counterScore, Projectile.owner, damage);
+			if (Main.LocalPlayer.whoAmI == Projectile.owner)
+				target.GetGlobalNPC<StarwoodScoreCounter>().AddScore(counterScore, Projectile.owner, damageDone);
 		}
 
 		public override void Kill(int timeLeft)
@@ -94,7 +95,7 @@ namespace StarlightRiver.Content.Items.Starwood
 					color *= 1.2f;
 
 				float scale = Projectile.scale * (Projectile.oldPos.Length - k) / Projectile.oldPos.Length * 0.8f * 0.5f;
-				Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Items/Starwood/Glow").Value;//TEXTURE PATH
+				Texture2D tex = Assets.Items.Starwood.Glow.Value;//TEXTURE PATH
 
 				spriteBatch.Draw(tex, (Projectile.oldPos[k] + Projectile.Size / 2 + Projectile.Center) * 0.5f - Main.screenPosition, null, color, 0, tex.Size() / 2, scale, default, default);
 			}
@@ -184,7 +185,7 @@ namespace StarlightRiver.Content.Items.Starwood
 					color *= 1.2f;
 
 				float scale = Projectile.scale * (Projectile.oldPos.Length - k) / Projectile.oldPos.Length * 0.8f;
-				Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Items/Starwood/Glow").Value;//TEXTURE PATH
+				Texture2D tex = Assets.Items.Starwood.Glow.Value;//TEXTURE PATH
 
 				spriteBatch.Draw(tex, (Projectile.oldPos[k] + Projectile.Size / 2 + Projectile.Center) * 0.50f - Main.screenPosition, null, color, 0, tex.Size() / 2, scale, default, default);
 			}
@@ -197,7 +198,7 @@ namespace StarlightRiver.Content.Items.Starwood
 					color *= 1.2f;
 
 				float scale = Projectile.scale * (Projectile.oldPos.Length - k) / Projectile.oldPos.Length * 0.8f;
-				Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Items/Starwood/StarwoodStarfallGlowTrail").Value;//TEXTURE PATH
+				Texture2D tex = Assets.Items.Starwood.StarwoodStarfallGlowTrail.Value;//TEXTURE PATH
 
 				spriteBatch.Draw(tex, (Projectile.oldPos[k] + Projectile.Size / 2 + Projectile.Center) * 0.50f - Main.screenPosition, null, color, 0, tex.Size() / 2, scale, default, default);
 			}

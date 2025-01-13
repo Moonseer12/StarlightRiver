@@ -7,12 +7,15 @@ namespace StarlightRiver.Content.Items.Misc
 	{
 		public override string Texture => AssetDirectory.MiscItem + Name;
 
-		public LostCollar() : base(ModContent.Request<Texture2D>(AssetDirectory.MiscItem + "BloodlessAmuletGlow").Value) { }
-
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Lost Collar");
-			Tooltip.SetDefault("+40% Inoculation\nDebuffs you inflict are inflicted on you\n+5% movement and attack speed per debuff affecting you\nCursed : Lose all debuff immunities");
+			Tooltip.SetDefault("+40% {{Inoculation}}\nDebuffs you inflict are inflicted on yourself\n+5% movement and attack speed per debuff affecting you\nLose all debuff immunities");
+		}
+
+		public override void SafeSetDefaults()
+		{
+			Item.value = Item.sellPrice(gold: 1, silver: 25);
 		}
 
 		public override void Load() //TODO: Make cursedaccessory.Load not hide this

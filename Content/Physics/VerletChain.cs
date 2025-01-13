@@ -16,16 +16,16 @@ namespace StarlightRiver.Content.Physics
 
 		public void Load()
 		{
-			On.Terraria.Main.DrawProjectiles += DrawVerletBanners;
+			On_Main.DrawProjectiles += DrawVerletBanners;
 		}
 
 		public void Unload()
 		{
-			target = null;
-			toDraw = null;
+			target ??= null;
+			toDraw ??= null;
 		}
 
-		private void DrawVerletBanners(On.Terraria.Main.orig_DrawProjectiles orig, Main self)
+		private void DrawVerletBanners(On_Main.orig_DrawProjectiles orig, Main self)
 		{
 			Effect shader = Filters.Scene["Outline"].GetShader().Shader;
 
@@ -35,7 +35,7 @@ namespace StarlightRiver.Content.Physics
 			shader.Parameters["resolution"].SetValue(new Vector2(Main.screenWidth, Main.screenHeight));
 			shader.Parameters["outlineColor"].SetValue(new Vector3(0, 0, 0));
 
-			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, default, Filters.Scene["Outline"].GetShader().Shader, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, default, SamplerState.PointClamp, default, RasterizerState.CullNone, Filters.Scene["Outline"].GetShader().Shader, Main.GameViewMatrix.TransformationMatrix);
 
 			VerletChain.DrawStripsPixelated(Main.spriteBatch);
 
@@ -57,7 +57,7 @@ namespace StarlightRiver.Content.Physics
 			graphics.Clear(Color.Transparent);
 			graphics.BlendState = BlendState.Opaque;
 
-			toDraw.RemoveAll(n => IsBannerDead(n));
+			toDraw.RemoveAll(IsBannerDead);
 
 			foreach (VerletChain i in toDraw)
 				i.DrawStrip(i.scale);
@@ -68,14 +68,8 @@ namespace StarlightRiver.Content.Physics
 			if (chain.parent is null)
 				return true;
 
-			if (chain.parent is NPC)
-				return !(chain.parent as NPC).active;
-
-			if (chain.parent is Projectile)
-				return !(chain.parent as Projectile).active;
-
-			if (chain.parent is Player)
-				return !(chain.parent as Player).active;
+			if (chain.parent is not null)
+				return !(chain.parent as Entity).active;
 
 			return false;
 		}
@@ -155,7 +149,7 @@ namespace StarlightRiver.Content.Physics
 		///		Terraria.Player: if Terraria.Player.active is false
 		/// 
 		/// </summary>
-		public object parent;
+		public Entity parent;
 
 		public VerletChain(int SegCount, bool specialDraw, Vector2 StartPoint, int SegDistance, bool CollideWithTiles = false)
 		{
@@ -369,8 +363,7 @@ namespace StarlightRiver.Content.Physics
 		/// <param name="scale"> the scale factor this should draw with </param>
 		public virtual void PrepareStrip(float scale)
 		{
-			if (meshBuffer is null)
-				meshBuffer = new VertexBuffer(Main.graphics.GraphicsDevice, typeof(VertexPositionColor), segmentCount * 9 - 6, BufferUsage.WriteOnly);
+			meshBuffer ??= new VertexBuffer(Main.graphics.GraphicsDevice, typeof(VertexPositionColor), segmentCount * 9 - 6, BufferUsage.WriteOnly);
 
 			var verticies = new VertexPositionColor[segmentCount * 9 - 6];
 
@@ -420,8 +413,7 @@ namespace StarlightRiver.Content.Physics
 			VertexBuffer buffer = prepareFunction(offset);
 			graphics.SetVertexBuffer(buffer);
 
-			if (effect is null)
-				effect = basicEffectColor;
+			effect ??= basicEffectColor;
 
 			foreach (EffectPass pass in effect.CurrentTechnique.Passes)
 			{

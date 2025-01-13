@@ -11,32 +11,37 @@ namespace StarlightRiver.Content.Items.Misc
 	{
 		public override string Texture => AssetDirectory.MiscItem + Name;
 
-		public Ironheart() : base("Ironheart", "Melee damage generates decaying barrier and defense") { }
+		public Ironheart() : base("Ironheart", "Melee damage generates decaying {{barrier}} and defense") { }
 
 		public override void Load()
 		{
 			StarlightPlayer.OnHitNPCEvent += OnHit;
-			StarlightProjectile.ModifyHitNPCEvent += OnHitProjectile;
+			StarlightProjectile.OnHitNPCEvent += OnHitProjectile;
 		}
 
 		public override void Unload()
 		{
 			StarlightPlayer.OnHitNPCEvent -= OnHit;
-			StarlightProjectile.ModifyHitNPCEvent -= OnHitProjectile;
+			StarlightProjectile.OnHitNPCEvent -= OnHitProjectile;
 		}
 
-		private void OnHitProjectile(Projectile Projectile, NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		private void OnHitProjectile(Projectile Projectile, NPC target, NPC.HitInfo info, int damageDone)
 		{
 			Player Player = Main.player[Projectile.owner];
 
 			if (Projectile.DamageType == DamageClass.Melee && Equipped(Player))
-				Player.GetModPlayer<StarlightPlayer>().SetIronHeart(damage);
+				Player.GetModPlayer<StarlightPlayer>().SetIronHeart(damageDone);
 		}
 
-		private void OnHit(Player Player, Item Item, NPC target, int damage, float knockback, bool crit)
+		private void OnHit(Player Player, Item Item, NPC target, NPC.HitInfo info, int damageDone)
 		{
 			if (Equipped(Player))
-				Player.GetModPlayer<StarlightPlayer>().SetIronHeart(damage);
+				Player.GetModPlayer<StarlightPlayer>().SetIronHeart(damageDone);
+		}
+
+		public override void SafeSetDefaults()
+		{
+			Item.value = Item.sellPrice(gold: 1);
 		}
 
 		public override void AddRecipes()
@@ -86,8 +91,6 @@ namespace StarlightRiver.Content.Items.Misc
 				Player.GetModPlayer<BarrierPlayer>().overchargeDrainRate = (int)(2.2f * mp.ironheartTimer);
 			}
 
-			//Main.NewText(level + " | " + mp.ironheartTimer);
-			//Main.NewText(level);
 			if (level < 0.001f)
 			{
 				Player.ClearBuff(Type);
@@ -113,7 +116,7 @@ namespace StarlightRiver.Core
 
 		public void SetIronHeart(int damage)
 		{
-			shouldSendHitPacket = true;
+			SetHitPacketStatus(false);
 
 			int buffType = ModContent.BuffType<IronheartBuff>();
 

@@ -23,14 +23,14 @@ namespace StarlightRiver.Content.Items.Breacher
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Scrapshot");
-			Tooltip.SetDefault("Right click to hook your enemies and pull closer\nFire while hooked to reduce spread and go flying");
+			Tooltip.SetDefault("<right> to hook your enemies and pull closer\nFire while hooked to reduce spread and go flying");
 		}
 
 		public override void SetDefaults()
 		{
 			Item.width = 24;
 			Item.height = 28;
-			Item.damage = 6;
+			Item.damage = 9;
 			Item.useAnimation = 30;
 			Item.useTime = 30;
 			Item.useStyle = ItemUseStyleID.Shoot;
@@ -42,6 +42,13 @@ namespace StarlightRiver.Content.Items.Breacher
 			Item.DamageType = DamageClass.Ranged;
 			Item.shoot = ProjectileID.None;
 			Item.shootSpeed = 17;
+		}
+
+		public override ModItem Clone(Item newEntity)
+		{
+			var clone = base.Clone(newEntity) as Scrapshot;
+			clone.hook = hook;
+			return clone;
 		}
 
 		public override Vector2? HoldoutOffset()
@@ -193,6 +200,21 @@ namespace StarlightRiver.Content.Items.Breacher
 			return Player.altFunctionUse != 2;
 		}
 
+		public override void AddRecipes()
+		{
+			Recipe recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.Boomstick);
+			recipe.AddIngredient(ModContent.ItemType<Content.Items.SpaceEvent.Astroscrap>(), 5);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
+
+			recipe = CreateRecipe();
+			recipe.AddIngredient(ItemID.IllegalGunParts);
+			recipe.AddIngredient(ModContent.ItemType<Content.Items.SpaceEvent.Astroscrap>(), 5);
+			recipe.AddTile(TileID.Anvils);
+			recipe.Register();
+		}
+
 		/// <summary>
 		/// we are using the precondition that only 1 scrapshot hook can exist for a Player in order to find and assign the hook in multiPlayer
 		/// </summary>
@@ -328,7 +350,7 @@ namespace StarlightRiver.Content.Items.Breacher
 					Player.velocity = Vector2.Normalize(startPos - hooked.Center) * 15;
 					CameraSystem.shake += 15;
 
-					hooked.StrikeNPC(Projectile.damage, Projectile.knockBack, Player.Center.X < hooked.Center.X ? -1 : 1);
+					hooked.SimpleStrikeNPC(Projectile.damage, Player.Center.X < hooked.Center.X ? -1 : 1);
 					Helper.PlayPitched("Guns/ChainPull", 0.001f, 0, Player.Center);
 				}
 			}
@@ -344,7 +366,7 @@ namespace StarlightRiver.Content.Items.Breacher
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			if (target.life <= 0 || Retracting)
 				return;
@@ -363,12 +385,11 @@ namespace StarlightRiver.Content.Items.Breacher
 			Projectile.friendly = false;
 		}
 
-		public override void ModifyHitNPC(NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitNPC(NPC target, ref NPC.HitModifiers modifiers)
 		{
-			damage /= 4;
-			knockback /= 4f;
-			crit = false;
-			base.ModifyHitNPC(target, ref damage, ref knockback, ref crit, ref hitDirection);
+			modifiers.FinalDamage *= 0.25f;
+			modifiers.Knockback *= 0.25f;
+			modifiers.DisableCrit();
 		}
 
 		public override bool PreDraw(ref Color lightColor)
@@ -376,8 +397,8 @@ namespace StarlightRiver.Content.Items.Breacher
 			if (struck)
 				return false;
 
-			Texture2D chainTex1 = ModContent.Request<Texture2D>(AssetDirectory.BreacherItem + "ScrapshotHookChain1").Value;
-			Texture2D chainTex2 = ModContent.Request<Texture2D>(AssetDirectory.BreacherItem + "ScrapshotHookChain2").Value;
+			Texture2D chainTex1 = Assets.Items.Breacher.ScrapshotHookChain1.Value;
+			Texture2D chainTex2 = Assets.Items.Breacher.ScrapshotHookChain2.Value;
 			Player Player = Main.player[Projectile.owner];
 
 			float dist = Vector2.Distance(Player.Center, Projectile.Center);
@@ -463,7 +484,8 @@ namespace StarlightRiver.Content.Items.Breacher
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 10, new TriangularTip(40 * 4), factor => factor * 5, factor => new Color(255, 170, 80) * factor.X * (Projectile.timeLeft / 100f));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 10, new NoTip(), factor => factor * 5, factor => new Color(255, 170, 80) * factor.X * (Projectile.timeLeft / 100f));
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center;
@@ -474,13 +496,13 @@ namespace StarlightRiver.Content.Items.Breacher
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.05f);
 			effect.Parameters["repeats"].SetValue(2f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 
 			trail?.Render(effect);
 		}

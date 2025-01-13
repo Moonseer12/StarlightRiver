@@ -20,12 +20,12 @@ namespace StarlightRiver.Content.Items.Moonstone
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Moonfury");
-			Tooltip.SetDefault("Call down a shard of moonstone, afflicting enemies with Dreamfire\nAfflicted enemies take extra damage on hit from Moonfury");
+			Tooltip.SetDefault("Call down a shard of moonstone, inflicting {{BUFF:MoonfuryDebuff}}");
 		}
 
 		public override void SetDefaults()
 		{
-			Item.damage = 25;
+			Item.damage = 28;
 			Item.DamageType = DamageClass.Melee;
 			Item.width = 36;
 			Item.height = 38;
@@ -33,7 +33,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 			Item.useAnimation = 25;
 			Item.useStyle = ItemUseStyleID.Swing;
 			Item.knockBack = 7.5f;
-			Item.value = 1000;
+			Item.value = Item.sellPrice(gold: 1);
 			Item.rare = ItemRarityID.Green;
 			Item.UseSound = SoundID.Item1;
 			Item.shootSpeed = 14f;
@@ -75,7 +75,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 			direction *= -10;
 			velocity = direction;
-			damage *= 2;
+			damage = (int)(damage * 1.5f);
 		}
 
 		public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
@@ -83,27 +83,32 @@ namespace StarlightRiver.Content.Items.Moonstone
 			if (cooldown > 0)
 				return false;
 
-			cooldown = 75;
+			cooldown = 95;
 			return true;
 		}
 
-		public override void ModifyHitNPC(Player player, NPC target, ref int damage, ref float knockBack, ref bool crit)
+		public override void ModifyHitNPC(Player player, NPC target, ref NPC.HitModifiers modifiers)
 		{
 			if (target.HasBuff(ModContent.BuffType<MoonfuryDebuff>()))
 			{
 				CameraSystem.shake += 10;
+
 				int index = target.FindBuffIndex(ModContent.BuffType<MoonfuryDebuff>());
 				target.DelBuff(index);
+
 				Helper.PlayPitched("Magic/Shadow1", 1, Main.rand.NextFloat(-0.1f, 0.1f));
-				damage += 5;
-				damage += (int)(target.defense / 5f);
+				modifiers.FlatBonusDamage += 20;
+				modifiers.FlatBonusDamage += (int)(target.defense / 5f);
 				Projectile.NewProjectile(player.GetSource_ItemUse(Item), target.Center, Vector2.Zero, ModContent.ProjectileType<MoonfuryRing>(), 0, 0, player.whoAmI);
 
 				for (int i = 0; i < 16; i++)
+				{
 					Dust.NewDustPerfect(target.Center, ModContent.DustType<Dusts.Glow>(), Vector2.UnitX.RotatedBy(Main.rand.NextFloat(6.28f)) * Main.rand.NextFloat(12), 0, new Color(50, 50, 255), 0.4f);
+				}
 			}
 		}
 	}
+
 	internal class MoonfuryProj : ModProjectile, IDrawPrimitive, IDrawAdditive
 	{
 		private List<Vector2> cache;
@@ -171,6 +176,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 			ManageTrail();
 		}
+
 		public override bool OnTileCollide(Vector2 oldVelocity)
 		{
 			if (!stuck)
@@ -210,7 +216,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 			return false;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(ModContent.BuffType<MoonfuryDebuff>(), 150);
 		}
@@ -238,11 +244,13 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 50, new RoundedTip(12), factor => (10 + factor * 25) * trailWidth, factor => new Color(120, 20 + (int)(100 * factor.X), 255) * factor.X * trailWidth);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 50, new RoundedTip(12), factor => (10 + factor * 25) * trailWidth, factor => new Color(120, 20 + (int)(100 * factor.X), 255) * factor.X * trailWidth);
 
 			trail.Positions = cache.ToArray();
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 50, new RoundedTip(6), factor => (80 + 0 + factor * 0) * trailWidth, factor => new Color(100, 20 + (int)(60 * factor.X), 255) * factor.X * 0.15f * trailWidth);
+			if (trail2 is null || trail2.IsDisposed)
+				trail2 = new Trail(Main.instance.GraphicsDevice, 50, new RoundedTip(6), factor => (80 + 0 + factor * 0) * trailWidth, factor => new Color(100, 20 + (int)(60 * factor.X), 255) * factor.X * 0.15f * trailWidth);
 
 			trail2.Positions = cache.ToArray();
 
@@ -258,14 +266,14 @@ namespace StarlightRiver.Content.Items.Moonstone
 			Effect effect = Filters.Scene["DatsuzeiTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.02f);
 			effect.Parameters["repeats"].SetValue(8f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
-			effect.Parameters["sampleTexture2"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/Items/Moonstone/DatsuzeiFlameMap2").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
+			effect.Parameters["sampleTexture2"].SetValue(Assets.Items.Moonstone.DatsuzeiFlameMap2.Value);
 
 			trail?.Render(effect);
 
@@ -363,9 +371,11 @@ namespace StarlightRiver.Content.Items.Moonstone
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 33, new TriangularTip(1), factor => 38 * (1 - Progress), factor => new Color(100, 0, 255));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 33, new NoTip(), factor => 38 * (1 - Progress), factor => new Color(100, 0, 255));
 
-			trail2 ??= new Trail(Main.instance.GraphicsDevice, 33, new TriangularTip(1), factor => 20 * (1 - Progress), factor => Color.Lerp(new Color(180, 180, 255), new Color(85, 85, 200), Progress));
+			if (trail2 is null || trail2.IsDisposed)
+				trail2 = new Trail(Main.instance.GraphicsDevice, 33, new NoTip(), factor => 20 * (1 - Progress), factor => Color.Lerp(new Color(180, 180, 255), new Color(85, 85, 200), Progress));
 			float nextplace = 33f / 32f;
 			var offset = new Vector2((float)Math.Sin(nextplace), (float)Math.Cos(nextplace));
 			offset *= Radius;
@@ -382,11 +392,11 @@ namespace StarlightRiver.Content.Items.Moonstone
 			Effect effect = Filters.Scene["OrbitalStrikeTrail"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.GlowTrail.Value);
 			effect.Parameters["alpha"].SetValue(1);
 
 			trail?.Render(effect);
@@ -398,7 +408,7 @@ namespace StarlightRiver.Content.Items.Moonstone
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public MoonfuryDebuff() : base("Dreamfire", "Next Moonfury hit has increased damage", false) { }
+		public MoonfuryDebuff() : base("Dreamfire", "The next Moonfury hit has increased damage", true) { }
 
 		public override void Update(NPC NPC, ref int buffIndex)
 		{

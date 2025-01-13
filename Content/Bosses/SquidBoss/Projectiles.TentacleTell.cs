@@ -1,9 +1,13 @@
 ﻿using System;
+using System.IO;
+using Terraria.DataStructures;
 
 namespace StarlightRiver.Content.Bosses.SquidBoss
 {
 	class TentacleTell : ModProjectile, IDrawAdditive
 	{
+		public static Vector2 endPointToAssign;
+
 		public Vector2 endPoint;
 
 		public override string Texture => AssetDirectory.SquidBoss + "TentacleTellTop";
@@ -24,6 +28,11 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			Projectile.damage = 0;
 		}
 
+		public override void OnSpawn(IEntitySource source)
+		{
+			endPoint = endPointToAssign;
+		}
+
 		public override bool PreDraw(ref Color lightColor)
 		{
 			return false;
@@ -32,8 +41,8 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
 			Texture2D top = ModContent.Request<Texture2D>(Texture).Value;
-			Texture2D body = ModContent.Request<Texture2D>(AssetDirectory.SquidBoss + "TentacleTellBody").Value;
-			Texture2D glow = ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail").Value;
+			Texture2D body = Assets.Bosses.SquidBoss.TentacleTellBody.Value;
+			Texture2D glow = Assets.GlowTrail.Value;
 			Texture2D flat = Terraria.GameContent.TextureAssets.MagicPixel.Value;
 
 			float timer = 60 - Projectile.timeLeft;
@@ -67,6 +76,16 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 				spriteBatch.Draw(body, pos, null, new Color(255, 80, 80) * (float)Math.Sin(Math.Max(0, timer - (dist - k) / dist * 30) / 30f * 3.14f), rot, body.Size() / 2, scale, 0, 0);
 				spriteBatch.Draw(body, pos, null, new Color(255, 120, 120) * (1 - timer / 20f), rot, body.Size() / 2, timer / 10f, 0, 0);
 			}
+		}
+
+		public override void SendExtraAI(BinaryWriter writer)
+		{
+			writer.WriteVector2(endPoint);
+		}
+
+		public override void ReceiveExtraAI(BinaryReader reader)
+		{
+			endPoint = reader.ReadVector2();
 		}
 	}
 }

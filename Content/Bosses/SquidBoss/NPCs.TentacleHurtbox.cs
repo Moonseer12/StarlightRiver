@@ -1,9 +1,15 @@
-﻿using Terraria.ID;
+﻿using StarlightRiver.Content.Abilities;
+using System.IO;
+using Terraria.DataStructures;
+using Terraria.GameContent.Bestiary;
+using Terraria.ID;
 
 namespace StarlightRiver.Content.Bosses.SquidBoss
 {
 	internal class TentacleHurtbox : ModNPC
 	{
+		public static Tentacle tentacleToAssign;
+
 		public Tentacle tentacle;
 
 		public SquidBoss Parent => tentacle.Parent;
@@ -20,20 +26,46 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			NPC.noTileCollide = true;
 			NPC.knockBackResist = 0f;
 			NPC.HitSound = SoundID.NPCHit1;
+			NPC.netAlways = true;
 		}
 
-		public override void ScaleExpertStats(int numPlayers, float bossLifeScale)
+		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
 		{
-			NPC.lifeMax = Main.masterMode ? (int)(1000 * bossLifeScale) : (int)(750 * bossLifeScale);
+			database.Entries.Remove(bestiaryEntry);
+		}
+
+		public override void ApplyDifficultyAndPlayerScaling(int numPlayers, float balance, float bossAdjustment)
+		{
+			NPC.lifeMax = Main.masterMode ? (int)(1000 * bossAdjustment) : (int)(750 * bossAdjustment);
+		}
+
+		public override void OnSpawn(IEntitySource source)
+		{
+			tentacle = tentacleToAssign;
 		}
 
 		public override void AI()
 		{
-			NPC.lifeMax = tentacle.NPC.lifeMax;
-			NPC.life = tentacle.NPC.life;
+			if (tentacle is null || !tentacle.NPC.active)
+			{
+				NPC.active = false;
+				return;
+			}
+
+			if (Parent is null || !Parent.NPC.active)
+			{
+				NPC.active = false;
+				return;
+			}
+
+			NPC.realLife = Parent.NPC.whoAmI;
+
 			NPC.Hitbox = tentacle.GetDamageHitbox();
 
 			NPC.dontTakeDamage = tentacle.State != 0;
+
+			if (Parent.NPC.life < Parent.NPC.lifeMax - tentacle.NPC.lifeMax * 4)
+				NPC.dontTakeDamage = true;
 		}
 
 		public override bool PreDraw(SpriteBatch spriteBatch, Vector2 screenPos, Color drawColor)
@@ -41,42 +73,24 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 			return false;
 		}
 
-		public override void ModifyHitByItem(Player player, Item item, ref int damage, ref float knockback, ref bool crit)
+		public override void ModifyHitByItem(Player player, Item item, ref NPC.HitModifiers modifiers)
 		{
-			damage = (int)(damage * 1.25f);
+			modifiers.FinalDamage *= 1.4f;
 		}
 
-		public override void ModifyHitByProjectile(Projectile projectile, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		public override void ModifyHitByProjectile(Projectile projectile, ref NPC.HitModifiers modifiers)
 		{
-			damage = (int)(damage * 1.25f);
+			modifiers.FinalDamage *= 1.4f;
 		}
 
-		public override void OnHitByItem(Player player, Item item, int damage, float knockback, bool crit)
+		public override void SendExtraAI(BinaryWriter writer)
 		{
-			if (crit)
-				damage *= 2; //"But what about the crit damage system?" -- That is calculated in ModifyHitByX, and is thus already accounted for before this.
-
-			if (Parent.NPC.life > Parent.NPC.lifeMax - NPC.lifeMax * 4)
-				Parent.NPC.life -= damage;
-
-			else if (Parent.NPC.life - damage < Parent.NPC.lifeMax - NPC.lifeMax * 4)
-				Parent.NPC.life = Parent.NPC.lifeMax - NPC.lifeMax * 4;
-
-			NPC.life = NPC.lifeMax;
+			writer.Write(tentacle.NPC.whoAmI);
 		}
 
-		public override void OnHitByProjectile(Projectile projectile, int damage, float knockback, bool crit)
+		public override void ReceiveExtraAI(BinaryReader reader)
 		{
-			if (crit)
-				damage *= 2;
-
-			if (Parent.NPC.life > Parent.NPC.lifeMax - NPC.lifeMax * 4)
-				Parent.NPC.life -= damage;
-
-			else if (Parent.NPC.life - damage < Parent.NPC.lifeMax - NPC.lifeMax * 4)
-				Parent.NPC.life = Parent.NPC.lifeMax - NPC.lifeMax * 4;
-
-			NPC.life = NPC.lifeMax;
+			tentacle = Main.npc[reader.ReadInt32()].ModNPC as Tentacle;
 		}
 	}
 }

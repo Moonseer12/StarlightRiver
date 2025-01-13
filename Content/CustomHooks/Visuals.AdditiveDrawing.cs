@@ -1,4 +1,6 @@
-﻿namespace StarlightRiver.Content.CustomHooks
+﻿using StarlightRiver.Core.Systems.DummyTileSystem;
+
+namespace StarlightRiver.Content.CustomHooks
 {
 	class AdditiveDrawing : HookGroup
 	{
@@ -8,18 +10,24 @@
 			if (Main.dedServ)
 				return;
 
-			On.Terraria.Main.DrawDust += DrawAdditive;
+			On_Main.DrawDust += DrawAdditive;
 		}
 
-		private void DrawAdditive(On.Terraria.Main.orig_DrawDust orig, Main self)
+		private void DrawAdditive(On_Main.orig_DrawDust orig, Main self)
 		{
 			orig(self);
-			Main.spriteBatch.Begin(default, BlendState.Additive, SamplerState.PointWrap, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, BlendState.Additive, SamplerState.PointWrap, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			for (int k = 0; k < Main.maxProjectiles; k++) //Projectiles
 			{
 				if (Main.projectile[k].active && Main.projectile[k].ModProjectile is IDrawAdditive)
 					(Main.projectile[k].ModProjectile as IDrawAdditive).DrawAdditive(Main.spriteBatch);
+			}
+
+			foreach (Dummy dummy in DummySystem.dummies) // Dummies
+			{
+				if (dummy is IDrawAdditive drawer)
+					drawer.DrawAdditive(Main.spriteBatch);
 			}
 
 			for (int k = 0; k < Main.maxNPCs; k++) //NPCs

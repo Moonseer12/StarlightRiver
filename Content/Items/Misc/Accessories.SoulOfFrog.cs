@@ -11,7 +11,8 @@ namespace StarlightRiver.Content.Items.Misc
 		public SoulOfFrog() : base("Soul Of Frog",
 			"Frogs are resurrected on death, growing stronger with each return from the brink.\n" +
 			"Killing other critters has a chance to reveal them as actually being a frog the whole time\n" +
-			"They will then be resurrected as if they were a frog the whole time, because they were")
+			"They will then be resurrected as if they were a frog the whole time, because they were\n" +
+			"I'm telling you, don't fuck with the frogs, please, they are stronger than you know")
 		{ }
 
 		public override void SafeSetDefaults()
@@ -28,22 +29,22 @@ namespace StarlightRiver.Content.Items.Misc
 			StarlightNPC.ModifyNPCLootEvent += Drop;
 		}
 
-		private void Drop(NPC npc, NPCLoot npcloot)
+		private void GrowFrogItem(NPC NPC, Player Player, Item Item, ref NPC.HitModifiers hit)
 		{
-			if (npc.type == NPCID.Frog)
-				npcloot.Add(ItemDropRule.Common(ModContent.ItemType<SoulOfFrog>(), 1000));
+			if (Equipped(Player))
+				TrySummonFrog(NPC);
 		}
 
-		private void GrowFrogProjectile(NPC NPC, Projectile Projectile, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
+		private void GrowFrogProjectile(NPC NPC, Projectile Projectile, ref NPC.HitModifiers hit)
 		{
 			if (Equipped(Main.player[Projectile.owner]))
 				TrySummonFrog(NPC);
 		}
 
-		private void GrowFrogItem(NPC NPC, Player Player, Item Item, ref int damage, ref float knockback, ref bool crit)
+		private void Drop(NPC npc, NPCLoot npcloot)
 		{
-			if (Equipped(Player))
-				TrySummonFrog(NPC);
+			if (npc.type == NPCID.Frog)
+				npcloot.Add(ItemDropRule.Common(ModContent.ItemType<SoulOfFrog>(), 1000));
 		}
 
 		private static void TrySummonFrog(NPC NPC)

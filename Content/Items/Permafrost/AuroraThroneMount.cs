@@ -17,7 +17,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 			primaryCooldownCoefficient = 20;
 			secondaryCooldownCoefficient = 900;
 			secondarySpeedCoefficient = 30;
-			damageCoefficient = 42;
+			originalDamageCoefficient = 42;
 			autoReuse = true;
 		}
 
@@ -116,7 +116,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 
 			Texture2D tex = ModContent.Request<Texture2D>(Texture).Value;
 			Texture2D tex2 = ModContent.Request<Texture2D>(Texture + "Glow").Value;
-			Texture2D tex3 = ModContent.Request<Texture2D>(AssetDirectory.SquidBoss + "PortalGlow").Value;
+			Texture2D tex3 = Assets.Bosses.SquidBoss.PortalGlow.Value;
 			Texture2D tex4 = ModContent.Request<Texture2D>(Texture + "Shape").Value;
 			CombatMountPlayer mp = drawPlayer.GetModPlayer<CombatMountPlayer>();
 			float progress = 1 - Math.Max(0, (mp.mountingTime - 15) / 15f);
@@ -213,7 +213,12 @@ namespace StarlightRiver.Content.Items.Permafrost
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Aurora Crown");
-			Tooltip.SetDefault("Summons an aurora throne combat mount\nLashes out with whip-like apendages\nRight click to summon explosive auroralings");
+			Tooltip.SetDefault("Combat Mount: Summons an Aurora Throne\nLashes out with whip-like appendages\n<right> to summon explosive Auroralings");
+		}
+
+		public override void SafeSetDefaults()
+		{
+			Item.value = Item.sellPrice(gold: 2);
 		}
 	}
 }

@@ -9,16 +9,16 @@ namespace StarlightRiver.Content.Items.Dungeon
 	{
 		private int currentMana = -1;
 
-		private readonly List<int> manaConsumed = new();
+		private List<int> manaConsumed = new();
 
 		public override string Texture => AssetDirectory.DungeonItem + Name;
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Starlight Pendant");
-			Tooltip.SetDefault("Barrier boosts mana regen by 1% per point of currently active barrier \n" +
-				"Consuming mana boosts barrier regen by 1% per 4 points of mana consumed in the past 5 seconds \n" +
-				"-10 barrier");
+			Tooltip.SetDefault("Boosts mana regen based on your current {{barrier}}\n" +
+				"Consuming mana boosts {{barrier}} regen\n" +
+				"-10 {{barrier}}");
 		}
 
 		public override void SetDefaults()
@@ -28,6 +28,14 @@ namespace StarlightRiver.Content.Items.Dungeon
 			Item.rare = ItemRarityID.Green;
 			Item.value = Item.buyPrice(0, 5, 0, 0);
 			Item.accessory = true;
+		}
+
+		public override ModItem Clone(Item newEntity)
+		{
+			var clone = base.Clone(newEntity) as StarlightPendant;
+			clone.manaConsumed = new List<int>(manaConsumed);
+
+			return clone;
 		}
 
 		public override void UpdateAccessory(Player Player, bool hideVisual)
@@ -51,8 +59,6 @@ namespace StarlightRiver.Content.Items.Dungeon
 				manaConsumedTotal += i;
 			float manaBonus = 1 + Player.GetModPlayer<BarrierPlayer>().barrier * 0.01f;
 
-			/*if (manaBonus > 1)
-				Main.NewText(manaBonus.ToString());*/
 			Player.manaRegen = (int)(Player.manaRegen * manaBonus);
 
 			Player.GetModPlayer<BarrierPlayer>().rechargeRate = (int)(Player.GetModPlayer<BarrierPlayer>().rechargeRate * 1 + manaConsumedTotal * 0.025f);

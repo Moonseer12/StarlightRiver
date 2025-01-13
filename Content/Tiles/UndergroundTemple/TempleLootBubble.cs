@@ -1,4 +1,5 @@
 ﻿using StarlightRiver.Content.Items.UndergroundTemple;
+using StarlightRiver.Core.Systems;
 using System.Collections.Generic;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
@@ -22,10 +23,11 @@ namespace StarlightRiver.Content.Tiles.UndergroundTemple
 		}
 	}
 
+	[SLRDebug]
 	class TestBubble : QuickTileItem
 	{
 		public override string Texture => "StarlightRiver/Assets/Tiles/Bubble";
 
-		public TestBubble() : base("Bubble", "Debug Item", "TempleLootBubble", 5, AssetDirectory.UndergroundTempleTile) { }
+		public TestBubble() : base("Bubble", "{{Debug}} Item", "TempleLootBubble", 5, AssetDirectory.UndergroundTempleTile) { }
 	}
 }

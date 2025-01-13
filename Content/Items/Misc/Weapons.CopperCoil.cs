@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using Terraria.DataStructures;
 using Terraria.GameContent.Creative;
 using Terraria.ID;
 
@@ -11,7 +13,7 @@ namespace StarlightRiver.Content.Items.Misc
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Copper Coil");
-			Tooltip.SetDefault("Strikes nearby enemies with static electricity");
+			Tooltip.SetDefault("Strikes nearby enemies with static electricity\nInflicts {{BUFF:StaticShock}}");
 			CreativeItemSacrificesCatalog.Instance.SacrificeCountNeededByItemId[Type] = 1;
 		}
 
@@ -19,6 +21,11 @@ namespace StarlightRiver.Content.Items.Misc
 		{
 			Item.DefaultToWhip(ModContent.ProjectileType<CopperCoilWhip>(), 5, 1.2f, 5f, 25);
 			Item.SetShopValues(ItemRarityID.White, Item.sellPrice(0, 0, 50));
+		}
+
+		public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
+		{
+			return !Main.projectile.Any(n => n.active && n.type == type && n.owner == player.whoAmI);
 		}
 
 		public override void AddRecipes()
@@ -169,14 +176,7 @@ namespace StarlightRiver.Content.Items.Misc
 			Projectile.Center = target.Center;
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
-		{
-			target.AddBuff(ModContent.BuffType<Buffs.StaticShock>(), 180);
-			Projectile.timeLeft = 100;
-			canHit = false;
-		}
-
-		public override void OnHitPvp(Player target, int damage, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(ModContent.BuffType<Buffs.StaticShock>(), 180);
 			Projectile.timeLeft = 100;
@@ -193,7 +193,7 @@ namespace StarlightRiver.Content.Items.Misc
 
 		public override bool PreDraw(ref Color lightColor)
 		{
-			ReLogic.Content.Asset<Texture2D> texture = ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrail");
+			ReLogic.Content.Asset<Texture2D> texture = Assets.GlowTrail;
 
 			float t = Utils.GetLerpValue(0, 80, Projectile.timeLeft, true);
 			var glowColor = Color.Lerp(new Color(120, 230, 255), Color.AliceBlue, 0.5f);

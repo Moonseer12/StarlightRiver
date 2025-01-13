@@ -3,6 +3,7 @@ using StarlightRiver.Helpers;
 using System.Collections.Generic;
 using System.Linq;
 using Terraria.Graphics.Effects;
+using Terraria.ID;
 
 namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 {
@@ -14,6 +15,9 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 		public bool gravity = true;
 
 		public Player nearestPlayer = default;
+
+		public NPC fakeNPC;
+
 		public ref float NPCType => ref Projectile.ai[0];
 		public ref float Timer => ref Projectile.ai[1];
 
@@ -31,10 +35,19 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		public override void AI()
 		{
+			if (fakeNPC is null)
+			{
+				fakeNPC = new NPC();
+				fakeNPC.SetDefaults((int)NPCType);
+			}
+
 			nearestPlayer = Main.player.Where(n => n.active && !n.dead).OrderBy(n => n.Distance(Projectile.Center)).FirstOrDefault();
 
-			ManageCaches();
-			ManageTrail();
+			if (Main.netMode != NetmodeID.Server)
+			{
+				ManageCaches();
+				ManageTrail();
+			}
 
 			if (Timer > 1)
 			{
@@ -45,13 +58,13 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				if (gravity)
 					Projectile.velocity.Y += 0.1f;
 
-				if (Main.rand.NextBool(2))
+				if (Main.rand.NextBool(2) && Main.netMode != NetmodeID.Server)
 					Dust.NewDustPerfect(Projectile.Center + Main.rand.NextVector2Circular(10, 10), ModContent.DustType<Cinder>(), Vector2.Zero, 0, new Color(255, 170, 100), 0.65f);
 
 				return;
 			}
 
-			if (Timer < 50)
+			if (Timer < 50 && Main.netMode != NetmodeID.Server)
 			{
 				Vector2 cinderPos = Projectile.Top + Main.rand.NextVector2Circular(40, 40);
 				Vector2 vel = -Vector2.UnitY.RotatedBy(cinderPos.AngleTo(Projectile.Center)) * Main.rand.NextFloat(-2, 2);
@@ -68,7 +81,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		public virtual void SpawnNPC()
 		{
-			NPC.NewNPC(Entity.GetSource_Misc("SLR:GlassGauntlet"), (int)Projectile.Center.X, (int)Projectile.Center.Y, (int)NPCType);
+			if (Main.netMode != NetmodeID.MultiplayerClient)
+				NPC.NewNPC(Entity.GetSource_Misc("SLR:GlassGauntlet"), (int)Projectile.Center.X, (int)Projectile.Center.Y, (int)NPCType);
 		}
 
 		public override bool OnTileCollide(Vector2 oldVelocity)
@@ -80,25 +94,25 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		public override bool PreDraw(ref Color lightColor)
 		{
-			var fakeNPC = new NPC();
-			fakeNPC.SetDefaults((int)NPCType);
+			if (fakeNPC is null)
+				return false;
 
 			Texture2D tex = ModContent.Request<Texture2D>((fakeNPC.ModNPC as VitricConstructNPC).PreviewTexturePath).Value;
 
 			Effect trailEffect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			trailEffect.Parameters["time"].SetValue(Projectile.timeLeft * -0.04f);
 			trailEffect.Parameters["repeats"].SetValue(1);
 			trailEffect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			trailEffect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			trailEffect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 
 			trail?.Render(trailEffect);
 
-			Texture2D glowTex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Keys/GlowAlpha").Value;
+			Texture2D glowTex = Assets.Keys.GlowAlpha.Value;
 			var color = new Color(255, 160, 100, 0);
 
 			Main.spriteBatch.Draw(glowTex, Projectile.Center - Main.screenPosition, null, color * (1 - Timer / 25f), 0, glowTex.Size() / 2, Timer * 0.1f, 0, 0);
@@ -108,16 +122,19 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			Main.spriteBatch.Draw(glowTex, Projectile.Center - Main.screenPosition, null, color * 2 * ((25 - Timer) / 25f), 0, glowTex.Size() / 2, 0.25f, 0, 0);
 
 			Effect effect = Filters.Scene["MoltenForm"].GetShader().Shader;
-			effect.Parameters["sampleTexture2"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/Bosses/VitricBoss/ShieldMap").Value);
+			effect.Parameters["sampleTexture2"].SetValue(Assets.Bosses.VitricBoss.ShieldMap.Value);
 			effect.Parameters["uTime"].SetValue(Timer / 70f * 2);
 			effect.Parameters["sourceFrame"].SetValue(new Vector4(0, 0, fakeNPC.frame.Width, fakeNPC.frame.Height));
 			effect.Parameters["texSize"].SetValue(tex.Size());
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, BlendState.NonPremultiplied, default, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, BlendState.NonPremultiplied, Main.DefaultSamplerState, default, RasterizerState.CullNone, effect, Main.GameViewMatrix.TransformationMatrix);
 
 			SpriteEffects spriteEffects = SpriteEffects.None;
 			Vector2 drawOffset = (fakeNPC.ModNPC as VitricConstructNPC).PreviewOffset;
+
+			if (nearestPlayer is null)
+				return false;
 
 			if (nearestPlayer.Center.X < Projectile.Center.X)
 			{
@@ -128,7 +145,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			Main.spriteBatch.Draw(tex, drawOffset + Projectile.Center - Main.screenPosition, null, Color.White, 0, new Vector2(tex.Width / 2, tex.Height - 5), 1, spriteEffects, 0);
 
 			Main.spriteBatch.End();
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 
 			return false;
 		}
@@ -154,7 +171,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 30, new TriangularTip(4), factor => 24, factor => new Color(255, 200, 165) * factor.X);
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, 30, new NoTip(), factor => 24, factor => new Color(255, 200, 165) * factor.X);
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;

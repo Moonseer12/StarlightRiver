@@ -4,8 +4,6 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 {
 	class SqueezeTell : ModProjectile, IDrawAdditive
 	{
-		public Vector2 endPoint;
-
 		public override string Texture => AssetDirectory.Invisible;
 
 		public override void SetStaticDefaults()
@@ -31,8 +29,8 @@ namespace StarlightRiver.Content.Bosses.SquidBoss
 
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
-			Texture2D arrow = ModContent.Request<Texture2D>(AssetDirectory.SquidBoss + "SqueezeTellArrow").Value;
-			Texture2D glow = ModContent.Request<Texture2D>("StarlightRiver/Assets/GlowTrailNoEnd").Value;
+			Texture2D arrow = Assets.Bosses.SquidBoss.SqueezeTellArrow.Value;
+			Texture2D glow = Assets.GlowTrailNoEnd.Value;
 			Texture2D flat = Terraria.GameContent.TextureAssets.MagicPixel.Value;
 
 			float timer = 180 - Projectile.timeLeft;

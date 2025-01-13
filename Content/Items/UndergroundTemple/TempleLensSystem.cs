@@ -18,7 +18,7 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 			if (Main.dedServ)
 				return;
 
-			On.Terraria.Main.DrawNPCs += DrawLens;
+			On_Main.DrawNPCs += DrawLens;
 		}
 
 		public void Unload()
@@ -26,7 +26,7 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 			if (Main.dedServ)
 				return;
 
-			On.Terraria.Main.DrawNPCs -= DrawLens;
+			On_Main.DrawNPCs -= DrawLens;
 		}
 
 		private static void DrawNPCTarget(SpriteBatch spriteBatch)
@@ -34,7 +34,7 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 			Main.graphics.GraphicsDevice.Clear(Color.Transparent);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, null, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, null, Main.GameViewMatrix.TransformationMatrix);
 
 			for (int i = 0; i < Main.npc.Length; i++)
 			{
@@ -64,9 +64,9 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 			Main.graphics.GraphicsDevice.Clear(Color.Transparent);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, null, Main.GameViewMatrix.ZoomMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, null, Main.GameViewMatrix.TransformationMatrix);
 
-			Texture2D bloom = ModContent.Request<Texture2D>(AssetDirectory.Keys + "GlowAlpha").Value;
+			Texture2D bloom = Assets.Keys.GlowAlpha.Value;
 			Color gold = Color.Orange;
 			gold.A = 0;
 
@@ -82,7 +82,7 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 			}
 		}
 
-		private void DrawLens(On.Terraria.Main.orig_DrawNPCs orig, Main self, bool behindTiles)
+		private void DrawLens(On_Main.orig_DrawNPCs orig, Main self, bool behindTiles)
 		{
 			orig(self, behindTiles);
 			if (!behindTiles && Active)
@@ -102,7 +102,7 @@ namespace StarlightRiver.Content.Items.UndergroundTemple
 				spriteBatch.Draw(NPCTarget.RenderTarget, new Rectangle(0, 0, Main.screenWidth, Main.screenHeight), Color.White);
 
 				spriteBatch.End();
-				spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+				spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 			}
 		}
 	}

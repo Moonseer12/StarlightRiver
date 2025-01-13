@@ -1,6 +1,7 @@
 ﻿using StarlightRiver.Content.GUI;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Terraria.DataStructures;
 using Terraria.ModLoader.IO;
 
@@ -18,7 +19,10 @@ namespace StarlightRiver.Core
 
 		public void QualifyForMedal(Medal medal)
 		{
-			//Main.NewText("Difficulty for current fight is:" + Difficulty);
+			// If a medal is already being attempted, dont start a new one
+			if (attemptedMedal.name != null)
+				return;
+
 			attemptedMedal = medal;
 
 			if (!deathCounters.Any(n => n.name == medal.name))
@@ -50,10 +54,9 @@ namespace StarlightRiver.Core
 			activeCounter = null;
 		}
 
-		public override void Hurt(bool pvp, bool quiet, double damage, int hitDirection, bool crit, int cooldownCounter)
+		public override void OnHurt(Player.HurtInfo info)
 		{
-			if (!pvp)
-				attemptedMedal = default;
+			attemptedMedal = default;
 		}
 
 		public override void Kill(double damage, int hitDirection, bool pvp, PlayerDeathReason damageSource)
@@ -104,7 +107,7 @@ namespace StarlightRiver.Core
 			Texture2D tex = ModContent.Request<Texture2D>("StarlightRiver/Assets/Medals/" + name).Value;
 
 			if (tex is null)
-				return ModContent.Request<Texture2D>("StarlightRiver/Assets/Medals/Cheater").Value;
+				return Assets.Medals.Cheater.Value;
 			else
 				return tex;
 		}
@@ -159,7 +162,8 @@ namespace StarlightRiver.Core
 
 		public override string ToString()
 		{
-			return name + ": " + (difficulty == 0 ? "Normal" : difficulty == 1 ? "Expert" : difficulty == -1 ? "Journey" : "Master");
+			string split = Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
+			return split + ": " + (difficulty == 0 ? "Normal" : difficulty == 1 ? "Expert" : difficulty == -1 ? "Journey" : "Master");
 		}
 
 		public override bool Equals(object obj)
@@ -181,6 +185,11 @@ namespace StarlightRiver.Core
 		public static Medal Deserialize(TagCompound tag)
 		{
 			return new Medal(tag.GetString("name"), tag.GetInt("difficulty"), tag.GetFloat("order"));
+		}
+
+		public override int GetHashCode()
+		{
+			throw new System.NotImplementedException();
 		}
 	}
 }

@@ -18,6 +18,13 @@ namespace StarlightRiver.Content.Items.Geomancer
 		protected bool released = false;
 		protected float releaseCounter = 0;
 		protected float extraSpin = 0f;
+
+		protected bool performedSpawnLogic = false;
+
+		protected Player Owner => Main.player[Projectile.owner];
+
+		public abstract StoredGem StoredGemType { get; }
+
 		public override void SetDefaults()
 		{
 			Projectile.friendly = false;
@@ -33,6 +40,16 @@ namespace StarlightRiver.Content.Items.Geomancer
 
 		public override void AI()
 		{
+			if (!performedSpawnLogic)
+			{
+				performedSpawnLogic = true;
+
+				Owner.TryGetModPlayer(out GeomancerPlayer geoPlayer);
+				geoPlayer.timer = 1200;
+				geoPlayer.ActivationCounter = 1f;
+				geoPlayer.GiveGemType(StoredGemType);
+			}
+
 			if (Projectile.scale == bigScale)
 				glowCounter += 0.02f;
 
@@ -65,7 +82,7 @@ namespace StarlightRiver.Content.Items.Geomancer
 					modPlayer.RubyStored = false;
 					modPlayer.DiamondStored = false;
 
-					modPlayer.storedGem = StoredGem.All;
+					modPlayer.activeGem = StoredGem.All;
 					modPlayer.allTimer = 400;
 
 					for (int i = 0; i < 3; i++)
@@ -85,19 +102,20 @@ namespace StarlightRiver.Content.Items.Geomancer
 		public override bool PreDraw(ref Color lightColor)
 		{
 			Texture2D tex = TextureAssets.Projectile[Projectile.type].Value;
+			SpriteEffects spriteEffects = (int)Main.player[Projectile.owner].gravDir == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 			if (Projectile.scale == bigScale)
 			{
 				float progress = glowCounter % 1;
 				float transparency = (float)Math.Pow(1 - progress, 2);
 				float scale = 0.95f + progress;
 
-				Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition + new Vector2(0, Projectile.gfxOffY), null, Color.White * transparency, Projectile.rotation, tex.Size() / 2, scale * Projectile.scale, SpriteEffects.None, 0f);
+				Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition + new Vector2(0, Projectile.gfxOffY), null, Color.White * transparency, Projectile.rotation, tex.Size() / 2, scale * Projectile.scale, spriteEffects, 0f);
 			}
 
 			float progress2 = 1 - fade;
 			float transparency2 = (float)Math.Pow(1 - progress2, 2);
 			float scale2 = 0.95f + progress2;
-			Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition + new Vector2(0, Projectile.gfxOffY), null, Color.White * transparency2, Projectile.rotation, tex.Size() / 2, Projectile.scale * scale2, SpriteEffects.None, 0f);
+			Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition + new Vector2(0, Projectile.gfxOffY), null, Color.White * transparency2, Projectile.rotation, tex.Size() / 2, Projectile.scale * scale2, spriteEffects, 0f);
 			return false;
 		}
 
@@ -110,7 +128,7 @@ namespace StarlightRiver.Content.Items.Geomancer
 			float progress2 = 1 - fade;
 			float transparency2 = (float)Math.Pow(1 - progress2, 2);
 			float scale2 = 0.95f + progress2;
-			Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition + new Vector2(0, Projectile.gfxOffY), null, Color.White * whiteCounter * transparency2, Projectile.rotation, tex.Size() / 2, Projectile.scale * scale2, SpriteEffects.None, 0f);
+			Main.spriteBatch.Draw(tex, Projectile.Center - Main.screenPosition + new Vector2(0, Projectile.gfxOffY), null, Color.White * whiteCounter * transparency2, Projectile.rotation, tex.Size() / 2, Projectile.scale * scale2, (int)Main.player[Projectile.owner].gravDir == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically, 0f);
 		}
 
 		protected virtual void SafeAI() { }
@@ -122,11 +140,13 @@ namespace StarlightRiver.Content.Items.Geomancer
 	{
 		public override string Texture => AssetDirectory.GeomancerItem + "GeoAmethyst";
 
+		public override StoredGem StoredGemType => StoredGem.Amethyst;
+
 		protected override void SafeAI()
 		{
 			GeomancerPlayer modPlayer = Main.player[Projectile.owner].GetModPlayer<GeomancerPlayer>();
 
-			if (modPlayer.storedGem == StoredGem.Amethyst && !released)
+			if (modPlayer.activeGem == StoredGem.Amethyst && !released)
 			{
 				fade = Math.Min(1, modPlayer.timer / 40f);
 				if (modPlayer.timer == 1)
@@ -150,10 +170,12 @@ namespace StarlightRiver.Content.Items.Geomancer
 	{
 		public override string Texture => AssetDirectory.GeomancerItem + "GeoRuby";
 
+		public override StoredGem StoredGemType => StoredGem.Ruby;
+
 		protected override void SafeAI()
 		{
 			GeomancerPlayer modPlayer = Main.player[Projectile.owner].GetModPlayer<GeomancerPlayer>();
-			if (modPlayer.storedGem == StoredGem.Ruby && !released)
+			if (modPlayer.activeGem == StoredGem.Ruby && !released)
 			{
 				fade = Math.Min(1, modPlayer.timer / 40f);
 				if (modPlayer.timer == 1)
@@ -177,10 +199,12 @@ namespace StarlightRiver.Content.Items.Geomancer
 	{
 		public override string Texture => AssetDirectory.GeomancerItem + "GeoSapphire";
 
+		public override StoredGem StoredGemType => StoredGem.Sapphire;
+
 		protected override void SafeAI()
 		{
 			GeomancerPlayer modPlayer = Main.player[Projectile.owner].GetModPlayer<GeomancerPlayer>();
-			if (modPlayer.storedGem == StoredGem.Sapphire && !released)
+			if (modPlayer.activeGem == StoredGem.Sapphire && !released)
 			{
 				fade = Math.Min(1, modPlayer.timer / 40f);
 				if (modPlayer.timer == 1)
@@ -204,10 +228,12 @@ namespace StarlightRiver.Content.Items.Geomancer
 	{
 		public override string Texture => AssetDirectory.GeomancerItem + "GeoEmerald";
 
+		public override StoredGem StoredGemType => StoredGem.Emerald;
+
 		protected override void SafeAI()
 		{
 			GeomancerPlayer modPlayer = Main.player[Projectile.owner].GetModPlayer<GeomancerPlayer>();
-			if (modPlayer.storedGem == StoredGem.Emerald && !released)
+			if (modPlayer.activeGem == StoredGem.Emerald && !released)
 			{
 				fade = Math.Min(1, modPlayer.timer / 40f);
 				if (modPlayer.timer == 1)
@@ -231,10 +257,12 @@ namespace StarlightRiver.Content.Items.Geomancer
 	{
 		public override string Texture => AssetDirectory.GeomancerItem + "GeoTopaz";
 
+		public override StoredGem StoredGemType => StoredGem.Topaz;
+
 		protected override void SafeAI()
 		{
 			GeomancerPlayer modPlayer = Main.player[Projectile.owner].GetModPlayer<GeomancerPlayer>();
-			if (modPlayer.storedGem == StoredGem.Topaz && !released)
+			if (modPlayer.activeGem == StoredGem.Topaz && !released)
 			{
 				fade = Math.Min(1, modPlayer.timer / 40f);
 				if (modPlayer.timer == 1)
@@ -263,10 +291,12 @@ namespace StarlightRiver.Content.Items.Geomancer
 	{
 		public override string Texture => AssetDirectory.GeomancerItem + "GeoDiamond";
 
+		public override StoredGem StoredGemType => StoredGem.Diamond;
+
 		protected override void SafeAI()
 		{
 			GeomancerPlayer modPlayer = Main.player[Projectile.owner].GetModPlayer<GeomancerPlayer>();
-			if (modPlayer.storedGem == StoredGem.Diamond && !released)
+			if (modPlayer.activeGem == StoredGem.Diamond && !released)
 			{
 				fade = Math.Min(1, modPlayer.timer / 40f);
 				if (modPlayer.timer == 1)

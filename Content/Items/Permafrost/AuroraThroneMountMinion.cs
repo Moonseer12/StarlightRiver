@@ -29,9 +29,9 @@ namespace StarlightRiver.Content.Items.Permafrost
 		{
 			Projectile.ai[0]++;
 
-			NPC target = Helpers.Helper.FindNearestNPC(Projectile.Center, true);
+			NPC target = Main.npc.Where(n => n.CanBeChasedBy() && n.Distance(Projectile.Center) < 1500f).OrderBy(n => n.Distance(Projectile.Center)).FirstOrDefault();
 
-			if (target != null && Projectile.ai[0] > 30)
+			if (target != default && Projectile.ai[0] > 30)
 				Projectile.velocity += Vector2.Normalize(Projectile.Center - target.Center) * -0.55f;
 
 			if (Projectile.ai[0] < 30 || Projectile.velocity.Length() > 10)
@@ -55,7 +55,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 		{
 			foreach (NPC npc in Main.npc.Where(n => n.active && n.CanBeChasedBy(this, false) && Vector2.Distance(n.Center, Projectile.Center) < 120))
 			{
-				npc.StrikeNPC(Projectile.damage, Projectile.knockBack, Projectile.Center.X > npc.Center.X ? 1 : -1, false);
+				npc.SimpleStrikeNPC(Projectile.damage, Projectile.Center.X > npc.Center.X ? 1 : -1, false, Projectile.knockBack);
 				npc.AddBuff(BuffType<AuroraThroneMountMinionDebuff>(), 300);
 			}
 
@@ -75,7 +75,7 @@ namespace StarlightRiver.Content.Items.Permafrost
 			Helpers.Helper.PlayPitched("JellyBounce", 1f, 1f, Projectile.Center);
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			target.AddBuff(BuffType<AuroraThroneMountMinionDebuff>(), 300);
 		}
@@ -85,9 +85,9 @@ namespace StarlightRiver.Content.Items.Permafrost
 			SpriteBatch spriteBatch = Main.spriteBatch;
 			var frame = new Rectangle(26 * ((int)(Projectile.ai[0] / 5) % 3), 0, 26, 30);
 
-			Texture2D tex = Request<Texture2D>(AssetDirectory.SquidBoss + "AuroralingGlow").Value;
-			Texture2D tex2 = Request<Texture2D>(AssetDirectory.SquidBoss + "AuroralingGlow2").Value;
-			Texture2D tex3 = Request<Texture2D>("StarlightRiver/Assets/Keys/GlowAlpha").Value;
+			Texture2D tex = Assets.Bosses.SquidBoss.AuroralingGlow.Value;
+			Texture2D tex2 = Assets.Bosses.SquidBoss.AuroralingGlow2.Value;
+			Texture2D tex3 = Assets.Keys.GlowAlpha.Value;
 
 			for (int k = 0; k < Projectile.oldPos.Length; k++)
 			{
@@ -130,16 +130,16 @@ namespace StarlightRiver.Content.Items.Permafrost
 			StarlightPlayer.ModifyHitByProjectileEvent += TakeExtraDamageProjectile;
 		}
 
-		private void TakeExtraDamage(Player player, NPC NPC, ref int damage, ref bool crit)
+		private void TakeExtraDamage(Player player, NPC NPC, ref Player.HurtModifiers hit)
 		{
 			if (Inflicted(player))
-				damage = (int)(damage * 1.25f);
+				hit.SourceDamage *= 1.25f;
 		}
 
-		private void TakeExtraDamageProjectile(Player player, Projectile proj, ref int damage, ref bool crit)
+		private void TakeExtraDamageProjectile(Player player, Projectile proj, ref Player.HurtModifiers hit)
 		{
 			if (Inflicted(player))
-				damage = (int)(damage * 1.25f);
+				hit.SourceDamage *= 1.25f;
 		}
 
 		public override void Update(NPC npc, ref int buffIndex)

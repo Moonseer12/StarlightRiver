@@ -1,5 +1,6 @@
 ﻿using StarlightRiver.Content.Bosses.SquidBoss;
 using StarlightRiver.Content.Tiles.Permafrost;
+using StarlightRiver.Core.Systems.BossRushSystem;
 using System.Collections.Generic;
 using System.IO;
 using Terraria.DataStructures;
@@ -9,29 +10,21 @@ using static Terraria.ModLoader.ModContent;
 
 namespace StarlightRiver.Content.CustomHooks
 {
-	public class ProtectionGlobalItem : GlobalItem
+	class ProtectionGlobalTime : GlobalTile
 	{
-		public override void Load()
+		public override bool CanExplode(int i, int j, int type)
 		{
-			On.Terraria.Player.PickTile += DontPickInZone;
-			On.Terraria.WorldGen.PlaceTile += DontManuallyPlaceInZone;
-			On.Terraria.WorldGen.PoundTile += DontPoundTile;
-			On.Terraria.WorldGen.PlaceWire += DontPlaceWire;
-			On.Terraria.WorldGen.PlaceWire2 += DontPlaceWire2;
-			On.Terraria.WorldGen.PlaceWire3 += DontPlaceWire3;
-			On.Terraria.WorldGen.PlaceWire4 += DontPlaceWire4;
-			On.Terraria.WorldGen.PlaceActuator += DontPlaceActuator;
+			if (IsProtected(i, j))
+				return false;
 
+			return base.CanExplode(i, j, type);
 		}
 
-		/// <summary>
-		/// Returns true if a protected region contains given coordinates
-		/// </summary>
-		/// <param name="x"></param>
-		/// <param name="y"></param>
-		/// <returns></returns>
-		private bool IsProtected(int x, int y)
+		public bool IsProtected(int x, int y) //TODO: move this to an easily accessible class later (not a fucking global item)
 		{
+			if (StarlightRiver.debugMode)
+				return false;
+
 			if (!Main.gameMenu || Main.dedServ) //shouldnt trigger while generating the world from the menu
 			{
 				foreach (Rectangle region in ProtectionWorld.ProtectedRegions)
@@ -40,7 +33,20 @@ namespace StarlightRiver.Content.CustomHooks
 						return true;
 				}
 
+				foreach (Ref<Rectangle> region in ProtectionWorld.RuntimeProtectedRegions)
+				{
+					if (region.Value.Contains(new Point(x, y)))
+						return true;
+				}
+
 				Tile tile = Framing.GetTileSafely(x, y);
+
+				// Let the player break their own tombstones atleast.
+				if (tile.TileType == TileID.Tombstones)
+					return false;
+
+				if (tile.WallType == WallType<Content.Tiles.Vitric.Temple.VitricTempleWall>())
+					return true;
 
 				if (tile.WallType == WallType<AuroraBrickWall>())
 				{
@@ -56,10 +62,85 @@ namespace StarlightRiver.Content.CustomHooks
 				}
 			}
 
+			if (BossRushSystem.isBossRush)
+				return true;
+
+			return false;
+		}
+	}
+
+	public class ProtectionGlobalItem : GlobalItem
+	{
+		public override void Load()
+		{
+			On_Player.PickTile += DontPickInZone;
+			On_Player.PickWall += DontPickWallInZone;
+			On_WorldGen.PlaceTile += DontManuallyPlaceInZone;
+			On_WorldGen.PoundTile += DontPoundTile;
+			On_WorldGen.PlaceWire += DontPlaceWire;
+			On_WorldGen.PlaceWire2 += DontPlaceWire2;
+			On_WorldGen.PlaceWire3 += DontPlaceWire3;
+			On_WorldGen.PlaceWire4 += DontPlaceWire4;
+			On_WorldGen.PlaceActuator += DontPlaceActuator;
+			On_WorldGen.KillTile += DontExplodeAtRuntime;
+			On_Player.CheckForGoodTeleportationSpot += DontTeleport;
+		}
+
+		/// <summary>
+		/// Returns true if a protected region contains given coordinates
+		/// </summary>
+		/// <param name="x"></param>
+		/// <param name="y"></param>
+		/// <returns></returns>
+		public bool IsProtected(int x, int y)
+		{
+			if (StarlightRiver.debugMode)
+				return false;
+
+			if (!Main.gameMenu || Main.dedServ) //shouldnt trigger while generating the world from the menu
+			{
+				foreach (Rectangle region in ProtectionWorld.ProtectedRegions)
+				{
+					if (region.Contains(new Point(x, y)))
+						return true;
+				}
+
+				foreach (Ref<Rectangle> region in ProtectionWorld.RuntimeProtectedRegions)
+				{
+					if (region.Value.Contains(new Point(x, y)))
+						return true;
+				}
+
+				Tile tile = Framing.GetTileSafely(x, y);
+
+				// Let the player break their own tombstones atleast.
+				if (tile.TileType == TileID.Tombstones)
+					return false;
+
+				if (tile.WallType == WallType<Content.Tiles.Vitric.Temple.VitricTempleWall>())
+					return true;
+
+				if (tile.WallType == WallType<AuroraBrickWall>())
+				{
+					for (int k = 0; k < Main.maxProjectiles; k++) //this is gross. Unfortunate.
+					{
+						Projectile proj = Main.projectile[k];
+
+						if (proj.active && proj.timeLeft > 10 && proj.ModProjectile is InteractiveProjectile && (proj.ModProjectile as InteractiveProjectile).CheckPoint(x, y))
+							return false;
+					}
+
+					return true;
+				}
+			}
+
+			if (BossRushSystem.isBossRush)
+				return true;
+
 			return false;
 		}
 
-		private bool DontPoundTile(On.Terraria.WorldGen.orig_PoundTile orig, int x, int y)
+		private bool DontPoundTile(On_WorldGen.orig_PoundTile orig, int x, int y)
 		{
 			if (IsProtected(x, y))
 			{
@@ -70,7 +151,7 @@ namespace StarlightRiver.Content.CustomHooks
 			return orig(x, y);
 		}
 
-		private bool DontPlaceWire(On.Terraria.WorldGen.orig_PlaceWire orig, int x, int y)
+		private bool DontPlaceWire(On_WorldGen.orig_PlaceWire orig, int x, int y)
 		{
 			if (IsProtected(x, y))
 			{
@@ -81,7 +162,7 @@ namespace StarlightRiver.Content.CustomHooks
 			return orig(x, y);
 		}
 
-		private bool DontPlaceWire2(On.Terraria.WorldGen.orig_PlaceWire2 orig, int x, int y)
+		private bool DontPlaceWire2(On_WorldGen.orig_PlaceWire2 orig, int x, int y)
 		{
 			if (IsProtected(x, y))
 			{
@@ -92,7 +173,7 @@ namespace StarlightRiver.Content.CustomHooks
 			return orig(x, y);
 		}
 
-		private bool DontPlaceWire3(On.Terraria.WorldGen.orig_PlaceWire3 orig, int x, int y)
+		private bool DontPlaceWire3(On_WorldGen.orig_PlaceWire3 orig, int x, int y)
 		{
 			if (IsProtected(x, y))
 			{
@@ -103,7 +184,7 @@ namespace StarlightRiver.Content.CustomHooks
 			return orig(x, y);
 		}
 
-		private bool DontPlaceWire4(On.Terraria.WorldGen.orig_PlaceWire4 orig, int x, int y)
+		private bool DontPlaceWire4(On_WorldGen.orig_PlaceWire4 orig, int x, int y)
 		{
 			if (IsProtected(x, y))
 			{
@@ -114,7 +195,7 @@ namespace StarlightRiver.Content.CustomHooks
 			return orig(x, y);
 		}
 
-		private bool DontPlaceActuator(On.Terraria.WorldGen.orig_PlaceActuator orig, int x, int y)
+		private bool DontPlaceActuator(On_WorldGen.orig_PlaceActuator orig, int x, int y)
 		{
 			if (IsProtected(x, y))
 			{
@@ -125,7 +206,18 @@ namespace StarlightRiver.Content.CustomHooks
 			return orig(x, y);
 		}
 
-		private void DontPickInZone(On.Terraria.Player.orig_PickTile orig, Player self, int x, int y, int pickPower)
+		private void DontPickWallInZone(On_Player.orig_PickWall orig, Player self, int x, int y, int damage)
+		{
+			if (IsProtected(x, y))
+			{
+				FailFX(new Point16(x, y));
+				return;
+			}
+
+			orig(self, x, y, damage);
+		}
+
+		private void DontPickInZone(On_Player.orig_PickTile orig, Player self, int x, int y, int pickPower)
 		{
 			if (IsProtected(x, y))
 			{
@@ -136,7 +228,7 @@ namespace StarlightRiver.Content.CustomHooks
 			orig(self, x, y, pickPower);
 		}
 
-		private bool DontManuallyPlaceInZone(On.Terraria.WorldGen.orig_PlaceTile orig, int i, int j, int type, bool mute, bool forced, int plr, int style)
+		private bool DontManuallyPlaceInZone(On_WorldGen.orig_PlaceTile orig, int i, int j, int type, bool mute, bool forced, int plr, int style)
 		{
 			if (IsProtected(i, j))
 			{
@@ -145,6 +237,32 @@ namespace StarlightRiver.Content.CustomHooks
 			}
 
 			return orig(i, j, type, mute, forced, plr, style);
+		}
+
+		private void DontExplodeAtRuntime(On_WorldGen.orig_KillTile orig, int i, int j, bool fail, bool effectOnly, bool noItem)
+		{
+			if (IsProtected(i, j) && !WorldGen.generatingWorld)
+			{
+				// Disabling for now since this breaks dashables... we will need a better fix for bombs only later.
+				//FailFX(new Point16(i, j));
+				//return;
+			}
+
+			orig(i, j, fail, effectOnly, noItem);
+		}
+
+		private Vector2 DontTeleport(On_Player.orig_CheckForGoodTeleportationSpot orig, Player self, ref bool canSpawn, int teleportStartX, int teleportRangeX, int teleportStartY, int teleportRangeY, Player.RandomTeleportationAttemptSettings settings)
+		{
+			Vector2 result = orig(self, ref canSpawn, teleportStartX, teleportRangeX, teleportStartY, teleportRangeY, settings);
+
+			// If invalid spot, recurse untill a valid one is found
+			if (IsProtected((int)result.X, (int)result.Y))
+			{
+				settings.attemptsBeforeGivingUp--;
+				result = self.CheckForGoodTeleportationSpot(ref canSpawn, teleportStartX, teleportRangeX, teleportStartY, teleportRangeY, settings);
+			}
+
+			return result;
 		}
 
 		public override bool CanUseItem(Item Item, Player player)
@@ -185,16 +303,27 @@ namespace StarlightRiver.Content.CustomHooks
 
 	public class ProtectionGlobalProjectile : GlobalProjectile //gravestones shouldnt do terrible things
 	{
+		public override bool AppliesToEntity(Projectile entity, bool lateInstantiation)
+		{
+			return entity.aiStyle == 17;
+		}
+
 		public override void PostAI(Projectile Projectile)
 		{
-			if (Projectile.aiStyle == 17)
+
+			foreach (Rectangle region in ProtectionWorld.ProtectedRegions)
 			{
-				foreach (Rectangle region in ProtectionWorld.ProtectedRegions)
+				if (region.Contains(new Point((int)Projectile.Center.X / 16, (int)Projectile.Center.Y / 16)))
 				{
-					if (region.Contains(new Point((int)Projectile.Center.X / 16, (int)Projectile.Center.Y / 16)))
-					{
-						Projectile.active = false;
-					}
+					Projectile.active = false;
+				}
+			}
+
+			foreach (Ref<Rectangle> region in ProtectionWorld.RuntimeProtectedRegions)
+			{
+				if (region.Value.Contains(new Point((int)Projectile.Center.X / 16, (int)Projectile.Center.Y / 16)))
+				{
+					Projectile.active = false;
 				}
 			}
 		}
@@ -204,9 +333,46 @@ namespace StarlightRiver.Content.CustomHooks
 	{
 		public static List<Rectangle> ProtectedRegions = new();
 
+		private static readonly Dictionary<Point16, Ref<Rectangle>> RuntimeRegionsByPoint = new();
+		public static readonly List<Ref<Rectangle>> RuntimeProtectedRegions = new();
+
+		public override void PostDrawTiles()
+		{
+			if (!StarlightRiver.debugMode)
+				return;
+
+			Main.spriteBatch.Begin(default, default, SamplerState.PointWrap, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
+
+			foreach (Rectangle rect in ProtectedRegions)
+			{
+				Texture2D tex = Assets.MagicPixel.Value;
+				var target = new Rectangle(rect.X * 16 - (int)Main.screenPosition.X, rect.Y * 16 - (int)Main.screenPosition.Y, rect.Width * 16, rect.Height * 16);
+				Main.spriteBatch.Draw(tex, target, Color.Red * 0.25f);
+			}
+
+			foreach (Ref<Rectangle> rectRef in RuntimeProtectedRegions)
+			{
+				Rectangle rect = rectRef.Value;
+				Texture2D tex = Assets.MagicPixel.Value;
+				var target = new Rectangle(rect.X * 16 - (int)Main.screenPosition.X, rect.Y * 16 - (int)Main.screenPosition.Y, rect.Width * 16, rect.Height * 16);
+				Main.spriteBatch.Draw(tex, target, Color.Blue * 0.25f);
+			}
+
+			Main.spriteBatch.End();
+		}
+
+		public override void PreWorldGen()
+		{
+			ProtectedRegions.Clear();
+			RuntimeProtectedRegions.Clear();
+			RuntimeRegionsByPoint.Clear();
+		}
+
 		public override void LoadWorldData(TagCompound tag)
 		{
 			ProtectedRegions.Clear();
+			RuntimeProtectedRegions.Clear();
+			RuntimeRegionsByPoint.Clear();
 
 			int length = tag.GetInt("RegionCount");
 
@@ -265,6 +431,25 @@ namespace StarlightRiver.Content.CustomHooks
 					Width = reader.ReadInt32(),
 					Height = reader.ReadInt32()
 				});
+			}
+		}
+
+		public static void AddRegionBySource(Point16 source, Rectangle region)
+		{
+			if (!RuntimeRegionsByPoint.ContainsKey(source))
+			{
+				var refRect = new Ref<Rectangle>(region);
+				RuntimeRegionsByPoint.Add(source, refRect);
+				RuntimeProtectedRegions.Add(refRect);
+			}
+		}
+
+		public static void RemoveRegionBySource(Point16 source)
+		{
+			if (RuntimeRegionsByPoint.TryGetValue(source, out Ref<Rectangle> refRect))
+			{
+				RuntimeProtectedRegions.Remove(refRect);
+				RuntimeRegionsByPoint.Remove(source);
 			}
 		}
 	}

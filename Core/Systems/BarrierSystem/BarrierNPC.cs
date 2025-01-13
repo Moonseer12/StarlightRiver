@@ -35,18 +35,25 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 				NPCBarrierGlow.anyEnemiesWithBarrier = true;
 		}
 
-		public void ModifyDamage(NPC NPC, ref int damage, ref float knockback, ref bool crit)
+		public override void ModifyIncomingHit(NPC npc, ref NPC.HitModifiers modifiers)
+		{
+			//We need to use the backdoor here because we need to know the final damage to correctly subtract from barrier!
+			modifiers.ModifyHitInfo += (ref NPC.HitInfo n) => ModifyDamage(npc, ref n);
+			timeSinceLastHit = 0;
+		}
+
+		public void ModifyDamage(NPC NPC, ref NPC.HitInfo info)
 		{
 			if (barrier > 0)
 			{
 				float reduction = 1.0f - barrierDamageReduction;
 
-				if (barrier > damage)
+				if (barrier > info.Damage)
 				{
-					CombatText.NewText(NPC.Hitbox, Color.Cyan, damage);
+					CombatText.NewText(NPC.Hitbox, Color.Cyan, info.Damage);
 
-					barrier -= damage;
-					damage = (int)(damage * reduction);
+					barrier -= info.Damage;
+					info.Damage = (int)(info.Damage * reduction);
 				}
 				else
 				{
@@ -54,30 +61,14 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 
 					CombatText.NewText(NPC.Hitbox, Color.Cyan, barrier);
 
-					int overblow = damage - barrier;
-					damage = (int)(barrier * reduction) + overblow;
+					int overblow = info.Damage - barrier;
+					info.Damage = (int)(barrier * reduction) + overblow;
 
 					barrier = 0;
 				}
 
-				knockback *= 0.5f;
+				info.Knockback *= 0.5f;
 			}
-		}
-
-		public override void ModifyHitByItem(NPC NPC, Player Player, Item Item, ref int damage, ref float knockback, ref bool crit)
-		{
-			ModifyDamage(NPC, ref damage, ref knockback, ref crit);
-			timeSinceLastHit = 0;
-
-			base.ModifyHitByItem(NPC, Player, Item, ref damage, ref knockback, ref crit);
-		}
-
-		public override void ModifyHitByProjectile(NPC NPC, Projectile Projectile, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
-		{
-			ModifyDamage(NPC, ref damage, ref knockback, ref crit);
-			timeSinceLastHit = 0;
-
-			base.ModifyHitByProjectile(NPC, Projectile, ref damage, ref knockback, ref crit, ref hitDirection);
 		}
 
 		public override void UpdateLifeRegen(NPC NPC, ref int damage)
@@ -129,7 +120,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 
 				Main.instance.DrawHealthBar((int)position.X, (int)position.Y, NPC.life, NPC.lifeMax, bright, scale);
 
-				Texture2D tex = ModContent.Request<Texture2D>(AssetDirectory.GUI + "ShieldBar1").Value;
+				Texture2D tex = Assets.GUI.ShieldBar1.Value;
 
 				float factor = Math.Min(barrier / (float)lastNonZeroBarrier, 1);
 
@@ -140,7 +131,7 @@ namespace StarlightRiver.Core.Systems.BarrierSystem
 
 				if (barrier < lastNonZeroBarrier)
 				{
-					Texture2D texLine = ModContent.Request<Texture2D>(AssetDirectory.GUI + "ShieldBarLine").Value;
+					Texture2D texLine = Assets.GUI.ShieldBarLine.Value;
 
 					var sourceLine = new Rectangle((int)(tex.Width * factor), 0, 2, tex.Height);
 					var targetLine = new Rectangle((int)(position.X - Main.screenPosition.X) + (int)(tex.Width * factor), (int)(position.Y - Main.screenPosition.Y), (int)(2 * scale), (int)(tex.Height * scale));

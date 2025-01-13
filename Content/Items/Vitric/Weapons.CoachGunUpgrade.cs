@@ -25,7 +25,9 @@ namespace StarlightRiver.Content.Items.Vitric
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Magmatic Coach Gun");
-			Tooltip.SetDefault("Press right click to throw out crystal bombs, bombs explode in chain reactions \nFiring at a bomb detonates it prematurely for more violent results\nHow does he manage to nuke like that?");
+			Tooltip.SetDefault("Press <right> to throw out crystal bombs, which explode in chain reactions \n" +
+				"Firing at a bomb detonates it and inflicts {{BUFF:SwelteredDeBuff}}\n" +
+				"'How does he manage to corenuke like that?'");
 		}
 
 		public override void SetDefaults()
@@ -52,7 +54,7 @@ namespace StarlightRiver.Content.Items.Vitric
 		{
 			CreateRecipe().
 				AddIngredient(ModContent.ItemType<CoachGun>()).
-				AddIngredient(ModContent.ItemType<MagmaCore>(), 3).
+				AddIngredient(ModContent.ItemType<MagmaCore>()).
 				AddIngredient(ItemID.HellstoneBar, 12).
 				AddTile(TileID.Anvils).
 				Register();
@@ -244,7 +246,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			}
 		}
 
-		public override void Kill(int timeLeft)
+		public override void OnKill(int timeLeft)
 		{
 			Helper.PlayPitched("GlassMiniboss/GlassSmash", 0.5f, Main.rand.NextFloat(-0.1f, 0.1f), Projectile.position);
 
@@ -407,7 +409,7 @@ namespace StarlightRiver.Content.Items.Vitric
 	{
 		public override string Texture => AssetDirectory.Debug;
 
-		public SwelteredDeBuff() : base("Sweltered", "Damage taken increased by 35%", false) { }
+		public SwelteredDeBuff() : base("Sweltered", "Deals 10 damage per second\nDamage taken increased by 35%", true) { }
 
 		public override void Update(NPC npc, ref int buffIndex)
 		{

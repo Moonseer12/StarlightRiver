@@ -1,4 +1,5 @@
-﻿using StarlightRiver.Content.Buffs;
+﻿using StarlightRiver.Content.Abilities;
+using StarlightRiver.Content.Buffs;
 using StarlightRiver.Content.Physics;
 using StarlightRiver.Core.VerletGenerators;
 using StarlightRiver.Helpers;
@@ -55,7 +56,8 @@ namespace StarlightRiver.Content.NPCs.Forest
 			NPC.width = 80;
 			NPC.height = 200;
 			NPC.knockBackResist = 0.1f;
-			NPC.lifeMax = 100;
+			NPC.lifeMax = 200;
+			NPC.defense = 5;
 			NPC.noGravity = true;
 			NPC.noTileCollide = true;
 			NPC.damage = 1;
@@ -65,32 +67,35 @@ namespace StarlightRiver.Content.NPCs.Forest
 			NPC.chaseable = true;
 			NPC.value = 100;
 
-			chain = new RectangularBanner(15, false, NPC.Center + Vector2.UnitY * -40, 8)
+			if (Main.netMode != NetmodeID.Server)
 			{
-				constraintRepetitions = 2,
-				drag = 1.2f,
-				forceGravity = new Vector2(0f, 0.55f),
-				scale = 16f,
-				parent = NPC
-			};
+				chain = new RectangularBanner(15, false, NPC.Center + Vector2.UnitY * -40, 8)
+				{
+					constraintRepetitions = 2,
+					drag = 1.2f,
+					forceGravity = new Vector2(0f, 0.55f),
+					scale = 16f,
+					parent = NPC
+				};
 
-			miniChain0 = new RectangularBanner(10, false, NPC.Center + new Vector2(22, -48), 8)
-			{
-				constraintRepetitions = 2,
-				drag = 1.35f,
-				forceGravity = new Vector2(0f, 0.55f),
-				scale = 4f,
-				parent = NPC
-			};
+				miniChain0 = new RectangularBanner(10, false, NPC.Center + new Vector2(22, -48), 8)
+				{
+					constraintRepetitions = 2,
+					drag = 1.35f,
+					forceGravity = new Vector2(0f, 0.55f),
+					scale = 4f,
+					parent = NPC
+				};
 
-			miniChain1 = new RectangularBanner(10, false, NPC.Center + new Vector2(-22, -48), 8)
-			{
-				constraintRepetitions = 2,
-				drag = 1.35f,
-				forceGravity = new Vector2(0f, 0.55f),
-				scale = 4f,
-				parent = NPC
-			};
+				miniChain1 = new RectangularBanner(10, false, NPC.Center + new Vector2(-22, -48), 8)
+				{
+					constraintRepetitions = 2,
+					drag = 1.35f,
+					forceGravity = new Vector2(0f, 0.55f),
+					scale = 4f,
+					parent = NPC
+				};
+			}
 		}
 
 		public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
@@ -113,13 +118,16 @@ namespace StarlightRiver.Content.NPCs.Forest
 			GlobalTimer++;
 			VisualTimer++;
 
-			chain.UpdateChain(NPC.Center + Vector2.UnitY * -40);
-			miniChain0.UpdateChain(NPC.Center + new Vector2(22, -48));
-			miniChain1.UpdateChain(NPC.Center + new Vector2(-22, -48));
+			if (Main.netMode != NetmodeID.Server)
+			{
+				chain.UpdateChain(NPC.Center + Vector2.UnitY * -40);
+				miniChain0.UpdateChain(NPC.Center + new Vector2(22, -48));
+				miniChain1.UpdateChain(NPC.Center + new Vector2(-22, -48));
 
-			chain.IterateRope(UpdateBanner);
-			miniChain0.IterateRope(UpdateBannerSmall);
-			miniChain1.IterateRope(UpdateBannerSmall);
+				chain.IterateRope(UpdateBanner);
+				miniChain0.IterateRope(UpdateBannerSmall);
+				miniChain1.IterateRope(UpdateBannerSmall);
+			}
 
 			Lighting.AddLight(NPC.Center, new Vector3(1.25f, 0.4f, 0.2f) * VFXAlpha * 0.7f);
 
@@ -203,7 +211,7 @@ namespace StarlightRiver.Content.NPCs.Forest
 
 					if (GlobalTimer % 60 == 0) //periodically check for more targets
 					{
-						NPC potentialTarget = NPC.FindNearestNPC(n => !n.noGravity && !targets.Contains(n) && Vector2.Distance(NPC.Center, n.Center) < 500);
+						NPC potentialTarget = NPC.FindNearestNPC(n => n.active && !n.friendly && !n.noGravity && !targets.Contains(n) && Vector2.Distance(NPC.Center, n.Center) < 500);
 
 						if (potentialTarget != null)
 							targets.Add(potentialTarget);
@@ -289,8 +297,8 @@ namespace StarlightRiver.Content.NPCs.Forest
 
 		public void DrawAdditive(SpriteBatch spriteBatch)
 		{
-			Texture2D auraTex = Request<Texture2D>("StarlightRiver/Assets/Misc/GlowRingTransparent").Value;
-			Texture2D ballTex = Request<Texture2D>("StarlightRiver/Assets/Keys/GlowSoft").Value;
+			Texture2D auraTex = Assets.Misc.GlowRingTransparent.Value;
+			Texture2D ballTex = Assets.Keys.GlowSoft.Value;
 			float maxScale = auraTex.Width / MAX_BUFF_RADIUS;
 
 			spriteBatch.Draw(auraTex, NPC.Center - Main.screenPosition, null, Color.Red * VFXAlpha * 0.4f, 0, auraTex.Size() / 2, VFXAlpha * maxScale, 0, 0);
@@ -318,17 +326,20 @@ namespace StarlightRiver.Content.NPCs.Forest
 		{
 			//they should only spawn at night in the forest after EoC is dead, and one max
 			if (spawnInfo.Player.ZoneForest() && !Main.dayTime && NPC.downedBoss1 && !Main.npc.Any(n => n.active && n.type == NPC.type))
-				return 0.25f;
+				return 0.05f;
 
 			return 0;
 		}
 
-		public override void OnKill()
+		public override void HitEffect(NPC.HitInfo hit)
 		{
-			for (int k = 0; k <= 12; k++)
+			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
 			{
-				int goreType = StarlightRiver.Instance.Find<ModGore>("WarbannerGore" + Main.rand.Next(7)).Type;
-				Gore.NewGore(NPC.GetSource_Death(), NPC.position + new Vector2(Main.rand.Next(NPC.width), Main.rand.Next(NPC.height)), Vector2.Zero, goreType);
+				for (int k = 0; k <= 12; k++)
+				{
+					int goreType = StarlightRiver.Instance.Find<ModGore>("WarbannerGore" + Main.rand.Next(7)).Type;
+					Gore.NewGore(NPC.GetSource_Death(), NPC.position + new Vector2(Main.rand.Next(NPC.width), Main.rand.Next(NPC.height)), Vector2.Zero, goreType);
+				}
 			}
 		}
 	}

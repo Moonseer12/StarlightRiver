@@ -1,5 +1,6 @@
 ﻿using StarlightRiver.Content.Items.Starwood;
 using Terraria.DataStructures;
+using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
 
 namespace StarlightRiver.Content.Items.Vanity
@@ -9,12 +10,14 @@ namespace StarlightRiver.Content.Items.Vanity
 	{
 		public override string Texture => AssetDirectory.VanityItem + Name;
 
-		public AncientStarwoodHat() : base(Request<Texture2D>(AssetDirectory.VanityItem + "AncientStarwoodHat_Alt").Value) { }
+		public AncientStarwoodHat() : base(Assets.Items.Vanity.AncientStarwoodHat_Alt.Value) { }
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Ancient Starwood Hat");
 			//Tooltip.SetDefault("");
+
+			ItemID.Sets.ShimmerTransformToItem[Type] = ModContent.ItemType<StarwoodHat>();
 		}
 
 		public override void SetDefaults()
@@ -35,12 +38,13 @@ namespace StarlightRiver.Content.Items.Vanity
 			isEmpowered = player.GetModPlayer<StarlightPlayer>().empowered;
 		}
 
-		public void DrawArmorLayer(PlayerDrawSet info)
+		public void DrawArmorLayer(PlayerDrawSet info, IArmorLayerDrawable.SubLayer subLayer)
 		{
+			int tempFixOffset = info.drawPlayer.gravDir == 1 ? -17 : 11;//todo: find out where in the drawing I accidentally hardcoded for the normal hat
 			if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
-				ArmorHelper.QuickDrawHeadFramed(info, AssetDirectory.VanityItem + "AncientStarwoodHat_Worn_Alt", 1, new Vector2(0, -17));
+				ArmorHelper.QuickDrawHeadFramed(info, AssetDirectory.VanityItem + "AncientStarwoodHat_Worn_Alt", 1, new Vector2(0, tempFixOffset));
 			else
-				ArmorHelper.QuickDrawHeadFramed(info, AssetDirectory.VanityItem + "AncientStarwoodHat_Worn", 1, new Vector2(0, -17));
+				ArmorHelper.QuickDrawHeadFramed(info, AssetDirectory.VanityItem + "AncientStarwoodHat_Worn", 1, new Vector2(0, tempFixOffset));
 		}
 	}
 
@@ -49,12 +53,14 @@ namespace StarlightRiver.Content.Items.Vanity
 	{
 		public override string Texture => AssetDirectory.VanityItem + Name;
 
-		public AncientStarwoodChest() : base(Request<Texture2D>(AssetDirectory.VanityItem + "AncientStarwoodChest_Alt").Value) { }
+		public AncientStarwoodChest() : base(Assets.Items.Vanity.AncientStarwoodChest_Alt.Value) { }
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Ancient Starwood Robes");
 			//Tooltip.SetDefault("");
+
+			ItemID.Sets.ShimmerTransformToItem[Type] = ModContent.ItemType<StarwoodChest>();
 		}
 
 		public override void SetDefaults()
@@ -75,10 +81,18 @@ namespace StarlightRiver.Content.Items.Vanity
 			isEmpowered = Player.GetModPlayer<StarlightPlayer>().empowered;
 		}
 
-		public void DrawArmorLayer(PlayerDrawSet info)
+		public void DrawArmorLayer(PlayerDrawSet info, IArmorLayerDrawable.SubLayer subLayer)
 		{
-			if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
-				ArmorHelper.QuickDrawBodyFramed(info, AssetDirectory.VanityItem + "AncientStarwoodChest_Body_Alt", 1, new Vector2(10, 18));
+			if (subLayer == IArmorLayerDrawable.SubLayer.InFront)
+			{
+				if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
+					ArmorHelper.QuickDrawFrontArmsFramed(info, AssetDirectory.VanityItem + "AncientStarwoodChest_Body_Alt", 1, new Vector2(0, -5));
+			}
+			else
+			{
+				if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
+					ArmorHelper.QuickDrawBodyFramed(info, AssetDirectory.VanityItem + "AncientStarwoodChest_Body_Alt", 1, new Vector2(0, -5));
+			}
 		}
 	}
 
@@ -87,12 +101,14 @@ namespace StarlightRiver.Content.Items.Vanity
 	{
 		public override string Texture => AssetDirectory.VanityItem + Name;
 
-		public AncientStarwoodBoots() : base(Request<Texture2D>(AssetDirectory.VanityItem + "AncientStarwoodBoots_Alt").Value) { }
+		public AncientStarwoodBoots() : base(Assets.Items.Vanity.AncientStarwoodBoots_Alt.Value) { }
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Ancient Starwood Leggings");
 			//Tooltip.SetDefault(" ");
+
+			ItemID.Sets.ShimmerTransformToItem[Type] = ModContent.ItemType<StarwoodBoots>();
 		}
 
 		public override void SetDefaults()
@@ -113,7 +129,7 @@ namespace StarlightRiver.Content.Items.Vanity
 			isEmpowered = Player.GetModPlayer<StarlightPlayer>().empowered;
 		}
 
-		public void DrawArmorLayer(PlayerDrawSet info)
+		public void DrawArmorLayer(PlayerDrawSet info, IArmorLayerDrawable.SubLayer subLayer)
 		{
 			if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
 				ArmorHelper.QuickDrawLegsFramed(info, AssetDirectory.VanityItem + "AncientStarwoodBoots_Legs_Alt", 1, new Vector2(10, 18));

@@ -1,4 +1,7 @@
 ﻿using StarlightRiver.Content.Items;
+using StarlightRiver.Content.Items.Vanity;
+using StarlightRiver.Content.Packets;
+using System;
 using System.Linq;
 using Terraria.DataStructures;
 using Terraria.ID;
@@ -11,12 +14,14 @@ namespace StarlightRiver.Content.Items.Starwood
 	{
 		public override string Texture => AssetDirectory.StarwoodItem + Name;
 
-		public StarwoodHat() : base(Request<Texture2D>(AssetDirectory.StarwoodItem + "StarwoodHat_Alt").Value) { }
+		public StarwoodHat() : base(Assets.Items.Starwood.StarwoodHat_Alt.Value) { }
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Starwood Hat");
 			Tooltip.SetDefault("5% increased magic damage");
+
+			ItemID.Sets.ShimmerTransformToItem[Type] = ModContent.ItemType<AncientStarwoodHat>();
 		}
 
 		public override void SetDefaults()
@@ -38,7 +43,7 @@ namespace StarlightRiver.Content.Items.Starwood
 			isEmpowered = Player.GetModPlayer<StarlightPlayer>().empowered;
 		}
 
-		public void DrawArmorLayer(PlayerDrawSet info)//custom drawing the hat (todo)
+		public void DrawArmorLayer(PlayerDrawSet info, IArmorLayerDrawable.SubLayer subLayer)
 		{
 			if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
 				ArmorHelper.QuickDrawHeadFramed(info, AssetDirectory.StarwoodItem + "StarwoodHat_Head_Alt", 1, new Vector2(0, -3));
@@ -50,17 +55,21 @@ namespace StarlightRiver.Content.Items.Starwood
 	{
 		public override string Texture => AssetDirectory.StarwoodItem + Name;
 
-		public StarwoodChest() : base(Request<Texture2D>(AssetDirectory.StarwoodItem + "StarwoodChest_Alt").Value) { }
+		public StarwoodChest() : base(Assets.Items.Starwood.StarwoodChest_Alt.Value) { }
 
 		public override void Load()//adds method to Starlight Player event
 		{
-			StarlightPlayer.ModifyHitNPCEvent += ModifyHitNPCStarwood;
+			StarlightPlayer.OnHitNPCEvent += ModifyHitNPCStarwood;
+			StarlightPlayer.OnHitNPCWithProjEvent += ModifyHitNPCWithProjStarwood;
+			StarlightPlayer.ResetEffectsEvent += ResetEmpowerment;
 		}
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Starwood Robes");
 			Tooltip.SetDefault("Increases max mana by 20");
+
+			ItemID.Sets.ShimmerTransformToItem[Type] = ModContent.ItemType<AncientStarwoodChest>();
 		}
 
 		public override void SetDefaults()
@@ -81,7 +90,6 @@ namespace StarlightRiver.Content.Items.Starwood
 		{
 			isEmpowered = Player.GetModPlayer<StarlightPlayer>().empowered;
 		}
-
 		public override bool IsArmorSet(Item head, Item body, Item legs)
 		{
 			return head.type == ItemType<StarwoodHat>() &&
@@ -90,7 +98,7 @@ namespace StarlightRiver.Content.Items.Starwood
 
 		public override void UpdateArmorSet(Player Player)
 		{
-			Player.setBonus = "Picking up mana stars empowers starwood Items, temporarily granting them new effects";
+			Player.setBonus = "Picking up mana stars empowers Starwood items, temporarily granting them new effects\nAll enemies have a chance of dropping mana stars on death";
 			StarlightPlayer mp = Player.GetModPlayer<StarlightPlayer>();
 
 			if (mp.empowermentTimer > 0 && ArmorHelper.IsSetEquipped(this, Player)) //checks if complete to disable empowerment if set is removed
@@ -107,16 +115,47 @@ namespace StarlightRiver.Content.Items.Starwood
 			}
 		}
 
-		private void ModifyHitNPCStarwood(Player Player, Item Item, NPC target, ref int damage, ref float knockback, ref bool crit)//sets bool on hit NPCs
+		private void ModifyHitNPCStarwood(Player Player, Item Item, NPC target, NPC.HitInfo info, int damageDone)//sets bool on hit NPCs
 		{
 			if (ArmorHelper.IsSetEquipped(this, Player))
+			{
 				target.GetGlobalNPC<ManastarDrops>().DropStar = true;
+				Player.GetModPlayer<StarlightPlayer>().SetHitPacketStatus(shouldRunProjMethods: false);
+			}
 		}
 
-		public void DrawArmorLayer(PlayerDrawSet info)
+		private void ModifyHitNPCWithProjStarwood(Player Player, Projectile proj, NPC target, NPC.HitInfo hit, int damageDone)
 		{
-			if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
-				ArmorHelper.QuickDrawBodyFramed(info, AssetDirectory.StarwoodItem + "StarwoodChest_Body_Alt", 1, new Vector2(10, 18));
+			if (ArmorHelper.IsSetEquipped(this, Player))
+			{
+				target.GetGlobalNPC<ManastarDrops>().DropStar = true;
+				Player.GetModPlayer<StarlightPlayer>().SetHitPacketStatus(shouldRunProjMethods: false);
+			}
+		}
+
+		private void ResetEmpowerment(StarlightPlayer modPlayer)
+		{
+			Player player = modPlayer.Player;
+
+			if (!(player.armor[1].ModItem is Starwood.StarwoodChest) || !ArmorHelper.IsSetEquipped(player.armor[1].ModItem, player)) // Checks armor set is off since it does not seem to be called in armor when the set is not complete
+			{
+				modPlayer.empowered = false;
+				modPlayer.empowermentTimer = 0;
+			}
+		}
+
+		public void DrawArmorLayer(PlayerDrawSet info, IArmorLayerDrawable.SubLayer subLayer)
+		{
+			if (subLayer == IArmorLayerDrawable.SubLayer.InFront)
+			{
+				if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
+					ArmorHelper.QuickDrawFrontArmsFramed(info, AssetDirectory.StarwoodItem + "StarwoodChest_Body_Alt", 1, new Vector2(0, -5));
+			}
+			else
+			{
+				if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
+					ArmorHelper.QuickDrawBodyFramed(info, AssetDirectory.StarwoodItem + "StarwoodChest_Body_Alt", 1, new Vector2(0, -5));
+			}
 		}
 	}
 
@@ -125,12 +164,14 @@ namespace StarlightRiver.Content.Items.Starwood
 	{
 		public override string Texture => AssetDirectory.StarwoodItem + Name;
 
-		public StarwoodBoots() : base(Request<Texture2D>(AssetDirectory.StarwoodItem + "StarwoodBoots_Alt").Value) { }
+		public StarwoodBoots() : base(Assets.Items.Starwood.StarwoodBoots_Alt.Value) { }
 
 		public override void SetStaticDefaults()
 		{
 			DisplayName.SetDefault("Starwood Leggings");
 			Tooltip.SetDefault("5% increased magic critial strike chance");
+
+			ItemID.Sets.ShimmerTransformToItem[Type] = ModContent.ItemType<AncientStarwoodBoots>();
 		}
 
 		public override void SetDefaults()
@@ -152,7 +193,7 @@ namespace StarlightRiver.Content.Items.Starwood
 			isEmpowered = Player.GetModPlayer<StarlightPlayer>().empowered;
 		}
 
-		public void DrawArmorLayer(PlayerDrawSet info)
+		public void DrawArmorLayer(PlayerDrawSet info, IArmorLayerDrawable.SubLayer subLayer)
 		{
 			if (info.drawPlayer.GetModPlayer<StarlightPlayer>().empowered)
 				ArmorHelper.QuickDrawLegsFramed(info, AssetDirectory.StarwoodItem + "StarwoodBoots_Legs_Alt", 1, new Vector2(10, 18));
@@ -164,6 +205,7 @@ namespace StarlightRiver.Content.Items.Starwood
 	{
 		public override bool OnPickup(Item Item, Player Player)
 		{
+			//clientside
 			if (new int[] { ItemID.Star, ItemID.SoulCake, ItemID.SugarPlum }.Contains(Item.type))
 			{
 				StarlightPlayer mp = Player.GetModPlayer<StarlightPlayer>();
@@ -202,19 +244,8 @@ namespace StarlightRiver.Core
 		{
 			if (Player.armor[1].ModItem is Content.Items.Starwood.StarwoodChest && ArmorHelper.IsSetEquipped(Player.armor[1].ModItem, Player))//checks if complete, not completely needed but is there so empowered isnt true for a brief moment
 			{
-				if (!empowered)
-				{
-					for (int k = 0; k < 80; k++)//pickup sfx
-						Dust.NewDustPerfect(Player.Center, DustType<Content.Dusts.BlueStamina>(), Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(0.8f, 1.2f) * new Vector2(1f, 1.5f), 0, default, 1.5f);
-				}
-				else
-				{
-					for (int k = 0; k < 40; k++)//reduced pickup sfx if its already active
-						Dust.NewDustPerfect(Player.Center, DustType<Content.Dusts.BlueStamina>(), Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(0.5f, 0.8f) * new Vector2(1f, 1.5f), 0, default, 1.5f);
-				}
-
-				empowered = true;
-				empowermentTimer = 600;//resets timer
+				StarwoodEmpowermentPacket packet = new StarwoodEmpowermentPacket(Player.whoAmI);
+				packet.Send();
 			}
 		}
 	}

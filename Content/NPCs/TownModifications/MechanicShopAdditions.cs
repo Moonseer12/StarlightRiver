@@ -5,12 +5,16 @@ namespace StarlightRiver.Content.NPCs.TownModifications
 {
 	class MechanicShopAdditions : GlobalNPC
 	{
-		public override void SetupShop(int type, Chest shop, ref int nextSlot)
+		public override bool AppliesToEntity(NPC entity, bool lateInstantiation)
 		{
-			if (type == NPCID.Mechanic)
+			return entity.type == NPCID.Mechanic;
+		}
+
+		public override void ModifyShop(NPCShop shop)
+		{
+			if (shop.NpcType == NPCID.Mechanic)
 			{
-				shop.item[nextSlot].SetDefaults(ModContent.ItemType<Sorcerwrench>());
-				nextSlot++;
+				shop.Add(new NPCShop.Entry(ModContent.ItemType<Sorcerwrench>()));
 			}
 		}
 	}

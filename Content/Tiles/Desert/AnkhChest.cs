@@ -15,7 +15,7 @@ namespace StarlightRiver.Content.Tiles.Desert
 	{
 		public override string Texture => AssetDirectory.DesertTile + Name;
 
-		public override int DummyType => ModContent.ProjectileType<AnkhChestDummy>();
+		public override int DummyType => DummySystem.DummyType<AnkhChestDummy>();
 
 		public override void SetStaticDefaults()
 		{
@@ -43,15 +43,13 @@ namespace StarlightRiver.Content.Tiles.Desert
 			TileObjectData.newTile.AnchorBottom = new AnchorData(AnchorType.SolidTile | AnchorType.SolidWithTop | AnchorType.SolidSide, TileObjectData.newTile.Width, 0);
 			TileObjectData.addTile(Type);
 
-			ModTranslation name = CreateMapEntryName();
+			LocalizedText name = CreateMapEntryName();
 			AddMapEntry(Color.Gold, name, MapChestName);
-			name = CreateMapEntryName(Name + "_Locked");
 			name.SetDefault("Ankh Chest");
 			AddMapEntry(Color.Cyan, name, MapChestName);
 			DustType = DustID.Sand;
 			AdjTiles = new int[] { TileID.Containers };
-			ChestDrop = ModContent.ItemType<AnkhChestItem>();
-			ContainerName.SetDefault("Ankh Chest");
+			RegisterItemDrop(ModContent.ItemType<AnkhChestItem>());
 		}
 
 		public string MapChestName(string name, int i, int j)
@@ -128,7 +126,6 @@ namespace StarlightRiver.Content.Tiles.Desert
 
 		public override void KillMultiTile(int i, int j, int frameX, int frameY)
 		{
-			Item.NewItem(new EntitySource_TileBreak(i, j), new Vector2(i, j) * 16, 32, 32, ChestDrop);
 			Chest.DestroyChest(i, j);
 		}
 
@@ -163,13 +160,13 @@ namespace StarlightRiver.Content.Tiles.Desert
 
 			if (player.editedChestName)
 			{
-				NetMessage.SendData(33, -1, -1, NetworkText.FromLiteral(Main.chest[player.chest].name), player.chest, 1f, 0f, 0f, 0, 0, 0);
+				NetMessage.SendData(MessageID.SyncPlayerChest, -1, -1, NetworkText.FromLiteral(Main.chest[player.chest].name), player.chest, 1f, 0f, 0f, 0, 0, 0);
 				player.editedChestName = false;
 			}
 
 			bool isLocked = IsLockedChest(left, top);
 
-			if (Main.netMode == 1 && !isLocked)
+			if (Main.netMode == NetmodeID.MultiplayerClient && !isLocked)
 			{
 				if (left == player.chestX && top == player.chestY && player.chest >= 0)
 				{
@@ -179,7 +176,7 @@ namespace StarlightRiver.Content.Tiles.Desert
 				}
 				else
 				{
-					NetMessage.SendData(31, -1, -1, null, left, top, 0f, 0f, 0, 0, 0);
+					NetMessage.SendData(MessageID.RequestChestOpen, -1, -1, null, left, top, 0f, 0f, 0, 0, 0);
 					Main.stackSplit = 600;
 				}
 			}
@@ -233,7 +230,7 @@ namespace StarlightRiver.Content.Tiles.Desert
 
 			if (chest >= 0 && tile.TileFrameX < 72)
 			{
-				player.cursorItemIconID = ChestDrop;
+				player.cursorItemIconID = ModContent.ItemType<AnkhChestItem>();
 				player.cursorItemIconText = "";
 				player.noThrow = 2;
 				player.cursorItemIconEnabled = true;
@@ -243,20 +240,20 @@ namespace StarlightRiver.Content.Tiles.Desert
 
 	internal class AnkhChestDummy : Dummy
 	{
-		public override string Texture => AssetDirectory.DesertTile + "AnkhChestGlow";
+		public override bool DoesCollision => true;
 
 		public AnkhChestDummy() : base(ModContent.TileType<AnkhChest>(), 32, 48) { }
 
 		public override void Collision(Player Player)
 		{
-			if (AbilityHelper.CheckDash(Player, Projectile.Hitbox))
+			if (AbilityHelper.CheckDash(Player, Hitbox))
 			{
-				SoundEngine.PlaySound(SoundID.Shatter, Projectile.Center);
+				SoundEngine.PlaySound(SoundID.Shatter, Center);
 				Player.GetHandler().ActiveAbility?.Deactivate();
 				Player.velocity = Vector2.Normalize(Player.velocity) * -10f;
 
-				int i = (int)(Projectile.position.X / 16);
-				int j = (int)(Projectile.position.Y / 16);
+				int i = (int)(position.X / 16);
+				int j = (int)(position.Y / 16);
 
 				for (int k = 0; k < 2; k++)
 				{
@@ -269,20 +266,20 @@ namespace StarlightRiver.Content.Tiles.Desert
 
 				for (int k = 0; k <= 10; k++)
 				{
-					Dust.NewDustPerfect(Projectile.Center, ModContent.DustType<Dusts.GlassGravity>(), Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(2), 0, default, 1.3f);
-					Dust.NewDustPerfect(Projectile.Center, ModContent.DustType<Dusts.Air>(), Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(2), 0, default, 0.8f);
+					Dust.NewDustPerfect(Center, ModContent.DustType<Dusts.GlassGravity>(), Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(2), 0, default, 1.3f);
+					Dust.NewDustPerfect(Center, ModContent.DustType<Dusts.Air>(), Vector2.One.RotatedByRandom(6.28f) * Main.rand.NextFloat(2), 0, default, 0.8f);
 				}
 
-				Projectile.active = false;
+				active = false;
 			}
 		}
 
 		public override void PostDraw(Color lightColor)
 		{
-			Texture2D tex = ModContent.Request<Texture2D>(Texture).Value;
-			Color color = Helper.IndicatorColorProximity(150, 300, Projectile.Center);
+			Texture2D tex = Assets.Tiles.Desert.AnkhChestGlow.Value;
+			Color color = Helper.IndicatorColorProximity(150, 300, Center);
 
-			Main.spriteBatch.Draw(tex, Projectile.position - new Vector2(1, -1) - Main.screenPosition, color);
+			Main.spriteBatch.Draw(tex, position - new Vector2(1, -1) - Main.screenPosition, color);
 		}
 	}
 

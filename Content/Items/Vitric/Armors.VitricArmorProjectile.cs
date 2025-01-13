@@ -217,7 +217,7 @@ namespace StarlightRiver.Content.Items.Vitric
 			}
 		}
 
-		public override void OnHitNPC(NPC target, int damage, float knockback, bool crit)
+		public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
 		{
 			for (int k = 0; k < 20; k++)
 			{
@@ -258,18 +258,21 @@ namespace StarlightRiver.Content.Items.Vitric
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, 90, new TriangularTip(20 * 4), factor => factor * 20, factor =>
+			if (trail is null || trail.IsDisposed)
 			{
-				if (factor.X > 0.95f)
-					return Color.White * 0;
+				trail = new Trail(Main.instance.GraphicsDevice, 90, new NoTip(), factor => factor * 20, factor =>
+							{
+								if (factor.X > 0.95f)
+									return Color.White * 0;
 
-				float alpha = 1;
+								float alpha = 1;
 
-				if (Projectile.timeLeft < 20)
-					alpha = Projectile.timeLeft / 20f;
+								if (Projectile.timeLeft < 20)
+									alpha = Projectile.timeLeft / 20f;
 
-				return new Color(255, 175 + (int)((float)Math.Sin(factor.X * 3.14f * 5) * 25), 100) * (float)Math.Sin(factor.X * 3.14f) * alpha;
-			});
+								return new Color(255, 175 + (int)((float)Math.Sin(factor.X * 3.14f * 5) * 25), 100) * (float)Math.Sin(factor.X * 3.14f) * alpha;
+							});
+			}
 
 			trail.Positions = cache.ToArray();
 			trail.NextPosition = Projectile.Center + Projectile.velocity;
@@ -280,13 +283,13 @@ namespace StarlightRiver.Content.Items.Vitric
 			Effect effect = Filters.Scene["CeirosRing"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["time"].SetValue(Main.GameUpdateCount * 0.05f);
 			effect.Parameters["repeats"].SetValue(2f);
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
-			effect.Parameters["sampleTexture"].SetValue(ModContent.Request<Texture2D>("StarlightRiver/Assets/EnergyTrail").Value);
+			effect.Parameters["sampleTexture"].SetValue(Assets.EnergyTrail.Value);
 
 			trail?.Render(effect);
 		}

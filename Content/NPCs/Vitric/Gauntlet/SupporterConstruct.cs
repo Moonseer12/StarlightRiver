@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Terraria.Audio;
 using Terraria.GameContent.Bestiary;
 using Terraria.ID;
 using static Terraria.ModLoader.ModContent;
@@ -42,7 +43,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 
 		public override void Load()
 		{
-			On.Terraria.Main.DrawNPCs += DrawBarrierGlow;
+			On_Main.DrawNPCs += DrawBarrierGlow;
 			base.Load();
 		}
 
@@ -61,17 +62,12 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			NPC.lifeMax = 100;
 			NPC.value = 0f;
 			NPC.knockBackResist = 0.6f;
-
-			NPC.HitSound = SoundID.Item27 with
-			{
-				Pitch = -0.3f
-			};
-
-			NPC.DeathSound = SoundID.Shatter;
+			NPC.HitSound = new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Impacts/IceHit") with { Pitch = 0.3f, PitchVariance = 0.3f };
+			NPC.DeathSound = new SoundStyle($"{nameof(StarlightRiver)}/Sounds/Impacts/EnergyBreak") with { Pitch = 0.3f, PitchVariance = 0.3f };
 			NPC.noGravity = false;
 		}
 
-		private void DrawBarrierGlow(On.Terraria.Main.orig_DrawNPCs orig, Main self, bool behindTiles = false)
+		private void DrawBarrierGlow(On_Main.orig_DrawNPCs orig, Main self, bool behindTiles = false)
 		{
 			for (int i = 0; i < Main.npc.Length; i++)
 			{
@@ -174,7 +170,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				Color color = Color.OrangeRed;
 				Vector2 pos = NPC.Center - Main.screenPosition;
 
-				if (healingTarget.Distance(NPC.Center) < 300)
+				if (healingTarget.Distance(NPC.Center) < 300 && Main.netMode != NetmodeID.Server)
 				{
 					for (int i = 10; i < width; i += 10)
 					{
@@ -262,8 +258,8 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				Color color = Color.OrangeRed;
 				Vector2 pos = NPC.Center - Main.screenPosition;
 				float laserRotation = NPC.DirectionTo(healingTarget.Center).ToRotation(); //TODO: Simplyify from copy/paste ceiros laser
-				Texture2D texBeam = Request<Texture2D>(AssetDirectory.MiscTextures + "BeamCore").Value;
-				Texture2D texBeam2 = Request<Texture2D>(AssetDirectory.MiscTextures + "BeamTrail").Value;
+				Texture2D texBeam = Assets.Misc.BeamCore.Value;
+				Texture2D texBeam2 = Assets.Misc.BeamTrail.Value;
 
 				Vector2 origin = new(0, texBeam.Height / 2);
 				Vector2 origin2 = new(0, texBeam2.Height / 2);
@@ -272,7 +268,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				effect.Parameters["uColor"].SetValue(color.ToVector3());
 
 				spriteBatch.End();
-				spriteBatch.Begin(default, default, default, default, default, effect, Main.GameViewMatrix.ZoomMatrix);
+				spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, effect, Main.GameViewMatrix.TransformationMatrix);
 
 				float height = texBeam.Height / 8f;
 				int width = (int)(NPC.Center - healingTarget.Center).Length();
@@ -287,7 +283,7 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 				spriteBatch.Draw(texBeam2, target2, source2, color * 0.5f, laserRotation, origin2, 0, 0);
 
 				spriteBatch.End();
-				spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.ZoomMatrix);
+				spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, default, Main.GameViewMatrix.TransformationMatrix);
 			}
 
 			Main.spriteBatch.Draw(mainTex, NPC.Center - screenPos, NPC.frame, drawColor, 0f, NPC.frame.Size() / 2, NPC.scale, spriteEffects, 0f);
@@ -296,9 +292,9 @@ namespace StarlightRiver.Content.NPCs.Vitric.Gauntlet
 			return false;
 		}
 
-		public override void OnKill()
+		public override void HitEffect(NPC.HitInfo hit)
 		{
-			if (Main.netMode != NetmodeID.Server)
+			if (NPC.life <= 0 && Main.netMode != NetmodeID.Server)
 			{
 				for (int i = 0; i < 4; i++)
 				{

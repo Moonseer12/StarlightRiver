@@ -17,17 +17,22 @@ namespace StarlightRiver.Content.GUI
 
 		public static Vector2 position;
 
-		private static float opacity;
+		private static float opacity = 1f;
 
-		public static int boxTimer;
+		public static int boxTimer = 0;
 
-		private static int textTimer;
+		private static int textTimer = 0;
+		private static int titleTimer = 0;
 
 		private static float widthOff = 0;
+
+		private static Rectangle boundingBox;
 
 		public static float HeightOff => (int)Terraria.GameContent.FontAssets.MouseText.Value.MeasureString(message).Y;
 
 		public override bool Visible => visible;
+
+		//public override InterfaceScaleType Scale => InterfaceScaleType.Game;
 
 		public override int InsertionIndex(List<GameInterfaceLayer> layers)
 		{
@@ -46,16 +51,71 @@ namespace StarlightRiver.Content.GUI
 			{
 				boxTimer++;
 			}
-			else if (textTimer < message.Length)
+			else
 			{
-				Terraria.Audio.SoundEngine.PlaySound(Terraria.ID.SoundID.MenuTick);
-				textTimer++;
+				if (textTimer < message.Length)
+				{
+					Terraria.Audio.SoundEngine.PlaySound(Terraria.ID.SoundID.MenuTick);
+					textTimer++;
+				}
+
+				if (titleTimer < title.Length)
+				{
+					Terraria.Audio.SoundEngine.PlaySound(Terraria.ID.SoundID.MenuTick);
+					titleTimer++;
+				}
 			}
 
 			Vector2 target = talking.Center + new Vector2(0, 50 + talking.height * 0.5f);
-			position = target - Main.screenPosition + (target - (Main.screenPosition + Main.ScreenSize.ToVector2() / 2)) * 0.15f;
+			Vector2 absolutePosition = target - Main.screenPosition + (target - (Main.screenPosition + Main.ScreenSize.ToVector2() / 2)) * 0.15f;
 
-			var nearby = new Rectangle(-52 + (int)position.X - 260, (int)position.Y - 40, 620, Math.Max(140, (int)Markdown.GetHeight(message, 1, 500) + 40));
+			// Calculate bounding
+			position = absolutePosition / Main.UIScale;
+
+			int mainWidth = (int)Helpers.Helper.LerpFloat(0, 520, Helpers.Helper.BezierEase(Math.Max(0, (boxTimer - 30) / 30f)));
+
+			int iconSize = (int)Helpers.Helper.LerpFloat(0, 100, Helpers.Helper.BezierEase(Math.Min(1, boxTimer / 30f)));
+
+			float titleWidth = Terraria.GameContent.FontAssets.MouseText.Value.MeasureString(title).X;
+			int titleSize = (int)Helpers.Helper.LerpFloat(0, titleWidth + 40, Helpers.Helper.BezierEase(boxTimer / 60f));
+
+			var mainRect = new Rectangle(50 + (int)position.X - 260, (int)position.Y, mainWidth, (int)Terraria.GameContent.FontAssets.MouseText.Value.MeasureString(message).Y + 20);
+			var iconRect = new Rectangle(-52 + (int)position.X - 260, (int)position.Y, iconSize, iconSize);
+			var titleRect = new Rectangle((int)position.X - titleSize / 2, (int)position.Y - 40, titleSize, 36);
+
+			// Calculate bounding box
+			SetBounds(mainRect);
+			SetBounds(iconRect);
+			SetBounds(titleRect);
+
+			// This accounts for buttons
+			boundingBox.Height += 44;
+
+			// Bound the position so that the box is in the screen
+			if (boundingBox.X < 0)
+				absolutePosition.X += -boundingBox.X * Main.UIScale;
+
+			if (boundingBox.Y < 0)
+				absolutePosition.Y += -boundingBox.Y * Main.UIScale;
+
+			if (boundingBox.X + boundingBox.Width > Main.screenWidth)
+				absolutePosition.X -= (boundingBox.X + boundingBox.Width - Main.screenWidth) * Main.UIScale;
+
+			if (boundingBox.Y + boundingBox.Height > Main.screenHeight)
+				absolutePosition.Y -= (boundingBox.Y + boundingBox.Height - Main.screenHeight) * Main.UIScale;
+
+			// Reset the bounding box
+			boundingBox = new Rectangle(9999, 9999, 0, 0);
+
+			// Recalculate rectangles
+			position = absolutePosition / Main.UIScale;
+
+			mainRect = new Rectangle(50 + (int)position.X - 260, (int)position.Y, mainWidth, (int)Terraria.GameContent.FontAssets.MouseText.Value.MeasureString(message).Y + 20);
+			iconRect = new Rectangle(-52 + (int)position.X - 260, (int)position.Y, iconSize, iconSize);
+			titleRect = new Rectangle((int)position.X - titleSize / 2, (int)position.Y - 40, titleSize, 36);
+
+			// Dim if the player is underneath
+			var nearby = new Rectangle(-52 + (int)absolutePosition.X - 260, (int)absolutePosition.Y - 40, 620, Math.Max(140, (int)Markdown.GetHeight(message, 1, 500) + 40));
 			Rectangle player = Main.LocalPlayer.Hitbox;
 			player.Offset((-Main.screenPosition).ToPoint());
 
@@ -72,38 +132,35 @@ namespace StarlightRiver.Content.GUI
 			icon = Main.screenTarget;
 
 			Vector2 pos = talking.Center - Main.screenPosition;
-			iconFrame = new Rectangle((int)pos.X - 44, (int)pos.Y - 44, 88, 88);
+			iconFrame = new Rectangle((int)pos.X - 44, (int)pos.Y - 44, (int)(88 * Main.GameViewMatrix.Zoom.X), (int)(88 * Main.GameViewMatrix.Zoom.X));
 
+			// Draw the actual box
 			if (message == "")
 				return;
 
-			//Main text box
-			int mainBoxWidth = (int)Helpers.Helper.LerpFloat(0, 520, Helpers.Helper.BezierEase(Math.Max(0, (boxTimer - 30) / 30f)));
-			DrawBox(spriteBatch, new Rectangle(50 + (int)position.X - 260, (int)position.Y, mainBoxWidth, (int)Terraria.GameContent.FontAssets.MouseText.Value.MeasureString(message).Y + 20));
+			// Main text box
+			DrawBox(spriteBatch, mainRect);
 			Utils.DrawBorderString(spriteBatch, message[..textTimer], new Vector2(50 + position.X - 250, position.Y + 15), Color.White);
 
-			//Box around the icon
-			int iconBoxSize = (int)Helpers.Helper.LerpFloat(0, 100, Helpers.Helper.BezierEase(Math.Min(1, boxTimer / 30f)));
-			DrawBox(spriteBatch, new Rectangle(-52 + (int)position.X - 260, (int)position.Y, iconBoxSize, iconBoxSize));
+			// Box around the icon
+			DrawBox(spriteBatch, iconRect);
 
 			if (!Main.screenTarget.IsDisposed && icon != null)
 			{
-				int iconSize = (int)Helpers.Helper.LerpFloat(0, 88, Helpers.Helper.BezierEase(Math.Min(1, boxTimer / 30f)));
-				spriteBatch.Draw(icon, new Rectangle(-46 + (int)position.X - 260, (int)position.Y + 6, iconSize, iconSize), iconFrame, Color.White * opacity, 0, Vector2.Zero, 0, 0);
+				int iconInnerSize = (int)Helpers.Helper.LerpFloat(0, 88, Helpers.Helper.BezierEase(Math.Min(1, boxTimer / 30f)));
+				spriteBatch.Draw(icon, new Rectangle(-46 + (int)position.X - 260, (int)position.Y + 6, iconInnerSize, iconInnerSize), iconFrame, Color.White * opacity, 0, Vector2.Zero, 0, 0);
 			}
 
-			//Title bar
-			float width = Terraria.GameContent.FontAssets.MouseText.Value.MeasureString(title).X;
-			int titleBarSize = (int)Helpers.Helper.LerpFloat(0, width + 40, Helpers.Helper.BezierEase(boxTimer / 60f));
-			DrawBox(spriteBatch, new Rectangle((int)position.X - titleBarSize / 2, (int)position.Y - 40, titleBarSize, 36));
-			Utils.DrawBorderString(spriteBatch, title[..Math.Min(title.Length, textTimer)], new Vector2((int)position.X, (int)position.Y - 18), Color.White, 1, 0.5f, 0.5f);
+			// Title bar
+			DrawBox(spriteBatch, titleRect);
+			Utils.DrawBorderString(spriteBatch, title[..Math.Min(title.Length, titleTimer)], new Vector2((int)position.X, (int)position.Y - 18), Color.White, 1, 0.5f, 0.5f);
 
 			base.Draw(spriteBatch);
 		}
 
 		public static void DrawBox(SpriteBatch sb, Rectangle target)
 		{
-			Texture2D tex = Request<Texture2D>("StarlightRiver/Assets/GUI/FancyBoxCustom").Value;
+			Texture2D tex = Assets.GUI.FancyBoxCustom.Value;
 			Color color = Color.White * 0.8f * opacity;
 
 			if (target.Width < 12 || target.Height < 12)
@@ -133,6 +190,28 @@ namespace StarlightRiver.Content.GUI
 			sb.Draw(tex, new Rectangle(target.X + target.Width, target.Y, 6, 6), sourceCorner, color, (float)Math.PI * 0.5f, Vector2.Zero, 0, 0);
 			sb.Draw(tex, new Rectangle(target.X + target.Width, target.Y + target.Height, 6, 6), sourceCorner, color, (float)Math.PI, Vector2.Zero, 0, 0);
 			sb.Draw(tex, new Rectangle(target.X, target.Y + target.Height, 6, 6), sourceCorner, color, (float)Math.PI * 1.5f, Vector2.Zero, 0, 0);
+
+			SetBounds(target);
+		}
+
+		public static void SetBounds(Rectangle input)
+		{
+			if (input.X < boundingBox.X)
+				boundingBox.X = input.X;
+
+			if (input.Y < boundingBox.Y)
+				boundingBox.Y = input.Y;
+
+			if (boundingBox.X + boundingBox.Width < input.X + input.Width)
+				boundingBox.Width = input.X + input.Width - boundingBox.X;
+
+			if (boundingBox.Y + boundingBox.Height < input.Y + input.Height)
+				boundingBox.Height = input.Y + input.Height - boundingBox.Y;
+		}
+
+		public override void SafeUpdate(GameTime gameTime)
+		{
+			Recalculate();
 		}
 
 		public static void OpenDialogue(NPC NPC, string newTitle, string newMessage)
@@ -144,6 +223,8 @@ namespace StarlightRiver.Content.GUI
 
 		public static void CloseDialogue()
 		{
+			Main.LocalPlayer.SetTalkNPC(-1);
+
 			visible = false;
 			boxTimer = 0;
 			textTimer = 0;
@@ -153,6 +234,9 @@ namespace StarlightRiver.Content.GUI
 		public static void SetData(NPC NPC, string newTitle, string newMessage)
 		{
 			textTimer = 0;
+
+			if (newTitle != title)
+				titleTimer = 0;
 
 			talking = NPC;
 			title = newTitle;
@@ -176,7 +260,7 @@ namespace StarlightRiver.Content.GUI
 		}
 	}
 
-	class RichTextButton : UIElement
+	class RichTextButton : SmartUIElement
 	{
 		readonly string message;
 		readonly Action onClick;
@@ -213,7 +297,7 @@ namespace StarlightRiver.Content.GUI
 				Utils.DrawBorderString(spriteBatch, message, GetDimensions().ToRectangle().TopLeft() + new Vector2(10, 5), Color.White);
 		}
 
-		public override void Click(UIMouseEvent evt)
+		public override void SafeClick(UIMouseEvent evt)
 		{
 			onClick.Invoke();
 			Terraria.Audio.SoundEngine.PlaySound(Terraria.ID.SoundID.MenuTick);

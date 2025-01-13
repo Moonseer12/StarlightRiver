@@ -8,26 +8,26 @@ namespace StarlightRiver.Content.CustomHooks
 	{
 		public override void Load()
 		{
-			On.Terraria.Player.dropItemCheck += DontDropCoolStuff;
-			On.Terraria.UI.ItemSlot.LeftClick_ItemArray_int_int += LockMouseToSpecialItem;
-			On.Terraria.UI.ItemSlot.Draw_SpriteBatch_ItemArray_int_int_Vector2_Color += DrawSpecial;
+			On_Player.dropItemCheck += DontDropCoolStuff;
+			Terraria.UI.On_ItemSlot.LeftClick_ItemArray_int_int += LockMouseToSpecialItem;
+			Terraria.UI.On_ItemSlot.Draw_SpriteBatch_ItemArray_int_int_Vector2_Color += DrawSpecial;
 
-			IL.Terraria.Player.ScrollHotbar += AllowBigScrolling;
-			IL.Terraria.Player.Update += AllowBigHotkeying;
+			//IL_Player.ScrollHotbar += AllowBigScrolling; disabled since it appears to do nothing currently and breaks auto-select
+			//IL_Player.Update += AllowBigHotkeying; PORTTODO: Fix IL, never mind this is unused for now. fix later if we actually use it!
 		}
 
-		private void DrawSpecial(On.Terraria.UI.ItemSlot.orig_Draw_SpriteBatch_ItemArray_int_int_Vector2_Color orig, SpriteBatch sb, Item[] inv, int context, int slot, Vector2 position, Color color)
+		private void DrawSpecial(Terraria.UI.On_ItemSlot.orig_Draw_SpriteBatch_ItemArray_int_int_Vector2_Color orig, SpriteBatch sb, Item[] inv, int context, int slot, Vector2 position, Color color)
 		{
 			if (inv[slot].ModItem is InworldItem && !(inv[slot].ModItem as InworldItem).VisibleInUI)
 				return;
 
 			if (inv[slot].ModItem is InworldItem && context == 13)
 			{
-				Texture2D back = ModContent.Request<Texture2D>("StarlightRiver/Assets/GUI/TempBack").Value;
+				Texture2D back = Assets.GUI.TempBack.Value;
 				var source = new Rectangle(0, 52 * (int)(Main.GameUpdateCount / 4 % 4), 52, 52);
 
 				sb.Draw(back, position, source, Color.White, 0f, default, Main.inventoryScale, SpriteEffects.None, 0f);
-				AccessorySlotControl.RedrawItem(sb, inv, back, position, slot, color);
+				//AccessorySlotControl.RedrawItem(sb, inv, position, slot, color); bandaid fix
 			}
 
 			else
@@ -64,15 +64,15 @@ namespace StarlightRiver.Content.CustomHooks
 			c.Emit(OpCodes.Ldc_I4, 60);
 		}
 
-		private void LockMouseToSpecialItem(On.Terraria.UI.ItemSlot.orig_LeftClick_ItemArray_int_int orig, Item[] inv, int context, int slot)
+		private void LockMouseToSpecialItem(Terraria.UI.On_ItemSlot.orig_LeftClick_ItemArray_int_int orig, Item[] inv, int context, int slot)
 		{
-			if (!(Main.mouseItem.ModItem is Core.InworldItem))
+			if (!(Main.mouseItem.ModItem is Core.InworldItem && !Main.mouseItem.IsAir))
 				orig(inv, context, slot);
 		}
 
-		private void DontDropCoolStuff(On.Terraria.Player.orig_dropItemCheck orig, Terraria.Player self)
+		private void DontDropCoolStuff(On_Player.orig_dropItemCheck orig, Terraria.Player self)
 		{
-			if (!(Main.mouseItem.ModItem is Core.InworldItem))
+			if (!(Main.mouseItem.ModItem is Core.InworldItem && !Main.mouseItem.IsAir))
 				orig(self);
 		}
 	}

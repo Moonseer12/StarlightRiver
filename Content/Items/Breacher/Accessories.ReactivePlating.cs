@@ -1,6 +1,5 @@
 ﻿using StarlightRiver.Content.CustomHooks;
 using System;
-using Terraria.DataStructures;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
 
@@ -79,12 +78,10 @@ namespace StarlightRiver.Content.Items.Breacher
 			}
 		}
 
-		public override bool PreHurt(bool pvp, bool quiet, ref int damage, ref int hitDirection, ref bool crit, ref bool customDamage, ref bool playSound, ref bool genGore, ref PlayerDeathReason damageSource, ref int cooldownCounter)
+		public override void ModifyHurt(ref Player.HurtModifiers modifiers)
 		{
 			if (active && !Shield)
 				damageCounter += 170;
-
-			return base.PreHurt(pvp, quiet, ref damage, ref hitDirection, ref crit, ref customDamage, ref playSound, ref genGore, ref damageSource, ref cooldownCounter);
 		}
 	}
 
@@ -127,7 +124,7 @@ namespace StarlightRiver.Content.Items.Breacher
 			effect.Parameters["alpha"].SetValue((float)Math.Pow(shieldTimer / 200f, 0.25f));
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, effect, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, effect, Main.GameViewMatrix.TransformationMatrix);
 
 			if (flickerTime > 0 && flickerTime < 16)
 			{
@@ -149,7 +146,7 @@ namespace StarlightRiver.Content.Items.Breacher
 			spriteBatch.Draw(target, PlayerTarget.getPlayerTargetPosition(drawPlayer.whoAmI), PlayerTarget.getPlayerTargetSourceRectangle(drawPlayer.whoAmI), Color.White);
 
 			spriteBatch.End();
-			spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 	}
 }

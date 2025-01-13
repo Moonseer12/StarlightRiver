@@ -1,4 +1,5 @@
-﻿using StarlightRiver.Content.Physics;
+﻿using StarlightRiver.Content.Abilities;
+using StarlightRiver.Content.Physics;
 using StarlightRiver.Helpers;
 using System;
 using System.Collections.Generic;
@@ -12,7 +13,7 @@ namespace StarlightRiver.Content.NPCs.Snow
 {
 	internal class Snoobel : ModNPC
 	{
-		private enum Phase
+		private enum AiStates
 		{
 			Walking = 0,
 			Whipping = 1,
@@ -27,7 +28,9 @@ namespace StarlightRiver.Content.NPCs.Snow
 
 		private readonly int PULL_DURATION = 80;
 
-		private Phase phase = Phase.Walking;
+		internal ref float currentPhase => ref NPC.ai[0];
+
+		internal ref float attackTimer => ref NPC.ai[1];
 
 		private Trail trail;
 		private List<Vector2> cache = new();
@@ -36,13 +39,13 @@ namespace StarlightRiver.Content.NPCs.Snow
 		private int yFrame = 0;
 		private int frameCounter = 0;
 
-		private int attackTimer = 0;
+		private bool hasLoaded = false;
 
 		public bool pulling = false;
 
 		public VerletChain trunkChain;
 
-		public bool CanHit => attackTimer > WHIP_BUILDUP && phase == Phase.Whipping || pulling;
+		public bool CanHit => attackTimer > WHIP_BUILDUP && currentPhase == (int)AiStates.Whipping || pulling;
 
 		private Vector2 TrunkStart => NPC.Center + new Vector2(33 * NPC.spriteDirection, 7 + NPC.gfxOffY + NPC.velocity.Y);
 
@@ -77,14 +80,7 @@ namespace StarlightRiver.Content.NPCs.Snow
 
 		public override void OnSpawn(IEntitySource source)
 		{
-			trunkChain = new VerletChain(NUM_SEGMENTS, true, TrunkStart, 2, true)
-			{
-				forceGravity = new Vector2(0, 0.1f),
-				simStartOffset = 0,
-				parent = NPC
-			};
-
-			var proj = Projectile.NewProjectileDirect(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<SnoobelCollider>(), (int)(40 * (Main.expertMode ? 0.5f : 1f)), 0);
+			var proj = Projectile.NewProjectileDirect(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<SnoobelCollider>(), (int)(30 * (Main.expertMode ? 0.5f : 1f)), 0);
 			(proj.ModProjectile as SnoobelCollider).parent = NPC;
 		}
 
@@ -104,17 +100,29 @@ namespace StarlightRiver.Content.NPCs.Snow
 
 		public override void AI()
 		{
+			if (!hasLoaded)
+			{
+				hasLoaded = true;
+
+				trunkChain = new VerletChain(NUM_SEGMENTS, true, TrunkStart, 2, true)
+				{
+					forceGravity = new Vector2(0, 0.1f),
+					simStartOffset = 0,
+					parent = NPC
+				};
+			}
+
 			NPC.TargetClosest(true);
 
-			switch (phase)
+			switch (currentPhase)
 			{
-				case Phase.Walking:
+				case (int)AiStates.Walking:
 					WalkingBehavior(); break;
-				case Phase.Whipping:
+				case (int)AiStates.Whipping:
 					WhippingBehavior(); break;
-				case Phase.Pulling:
+				case (int)AiStates.Pulling:
 					PullingBehavior(); break;
-				case Phase.Deciding:
+				case (int)AiStates.Deciding:
 					DecidingBehavior(); break;
 			}
 
@@ -160,9 +168,9 @@ namespace StarlightRiver.Content.NPCs.Snow
 			NPC.frame = new Rectangle(frameWidth * xFrame, frameHeight * yFrame + 2, frameWidth, frameHeight - 2);
 		}
 
-		public override void OnKill()
+		public override void HitEffect(NPC.HitInfo hit)
 		{
-			if (Main.netMode != NetmodeID.Server)
+			if (Main.netMode != NetmodeID.Server && NPC.life <= 0)
 			{
 				foreach (RopeSegment segment in trunkChain.ropeSegments)
 				{
@@ -185,7 +193,7 @@ namespace StarlightRiver.Content.NPCs.Snow
 			Effect effect = Terraria.Graphics.Effects.Filters.Scene["SnoobelTrunk"].GetShader().Shader;
 
 			var world = Matrix.CreateTranslation(-Main.screenPosition.Vec3());
-			Matrix view = Main.GameViewMatrix.ZoomMatrix;
+			Matrix view = Main.GameViewMatrix.TransformationMatrix;
 			var projection = Matrix.CreateOrthographicOffCenter(0, Main.screenWidth, Main.screenHeight, 0, -1, 1);
 
 			effect.Parameters["transformMatrix"].SetValue(world * view * projection);
@@ -204,7 +212,7 @@ namespace StarlightRiver.Content.NPCs.Snow
 			effect.Parameters["totalLength"].SetValue(TotalLength(points));
 			trail.Render(effect);
 
-			Main.spriteBatch.Begin(default, default, default, default, default, default, Main.GameViewMatrix.TransformationMatrix);
+			Main.spriteBatch.Begin(default, default, Main.DefaultSamplerState, default, RasterizerState.CullNone, default, Main.GameViewMatrix.TransformationMatrix);
 		}
 
 		private void ManageCache()
@@ -247,7 +255,8 @@ namespace StarlightRiver.Content.NPCs.Snow
 
 		private void ManageTrail()
 		{
-			trail ??= new Trail(Main.instance.GraphicsDevice, NUM_SEGMENTS, new TriangularTip(1), factor => 7, factor => Lighting.GetColor((int)(NPC.Center.X / 16), (int)(NPC.Center.Y / 16)));
+			if (trail is null || trail.IsDisposed)
+				trail = new Trail(Main.instance.GraphicsDevice, NUM_SEGMENTS, new NoTip(), factor => 7, factor => Lighting.GetColor((int)(NPC.Center.X / 16), (int)(NPC.Center.Y / 16)));
 
 			List<Vector2> positions = cache;
 			trail.NextPosition = positions[NUM_SEGMENTS - 1];
@@ -263,7 +272,7 @@ namespace StarlightRiver.Content.NPCs.Snow
 
 			if (attackTimer >= 200)
 			{
-				phase = Phase.Deciding;
+				currentPhase = (int)AiStates.Deciding;
 				attackTimer = 0;
 			}
 
@@ -381,15 +390,17 @@ namespace StarlightRiver.Content.NPCs.Snow
 		private void DecidingBehavior()
 		{
 			attackTimer = 0;
-			phase = (Phase)Main.rand.Next(2) + 1;
+			currentPhase = Main.rand.Next(2) + 1;
 			//phase = Phase.Pulling;
-			switch (phase)
+			switch (currentPhase)
 			{
-				case Phase.Whipping:
+				case (int)AiStates.Whipping:
 					WhippingBehavior(); break;
-				case Phase.Pulling:
+				case (int)AiStates.Pulling:
 					PullingBehavior(); break;
 			}
+
+			NPC.netUpdate = true;
 		}
 
 		private void UpdateTrunk()
@@ -452,7 +463,7 @@ namespace StarlightRiver.Content.NPCs.Snow
 			attackTimer = 0;
 			trunkChain.forceGravity = new Vector2(0, 0.1f);
 			trunkChain.useEndPoint = false;
-			phase = Phase.Walking;
+			currentPhase = (int)AiStates.Walking;
 		}
 	}
 
@@ -461,8 +472,6 @@ namespace StarlightRiver.Content.NPCs.Snow
 		public override string Texture => AssetDirectory.Assets + "Invisible";
 
 		public NPC parent;
-
-		public VerletChain Chain => (parent.ModNPC as Snoobel).trunkChain;
 
 		public override void SetStaticDefaults()
 		{
@@ -480,6 +489,26 @@ namespace StarlightRiver.Content.NPCs.Snow
 
 		public override void AI()
 		{
+			if (parent is null)
+			{
+				//find the closest snoobel NPC and set it as the parent.
+				//kind of a horrible hack but it should work >99% of the time
+				//maybe refactor to give snoobels UUIDs to find the correct parent 100% of the time (or maybe a UUID NPC/projectile system since we seem to require parent child connections a lot)
+				NPC closestSnoobel = null;
+
+				for (int i = 0; i < Main.maxNPCs; i++)
+				{
+					NPC eachNpc = Main.npc[i];
+					if (eachNpc.active && eachNpc.type == ModContent.NPCType<Snoobel>())
+					{
+						if (closestSnoobel is null || closestSnoobel.position.DistanceSQ(Projectile.position) > eachNpc.position.DistanceSQ(Projectile.position))
+							closestSnoobel = eachNpc;
+					}
+				}
+
+				parent = closestSnoobel;
+			}
+
 			if (parent.active)
 			{
 				Projectile.timeLeft = 2;
@@ -489,6 +518,14 @@ namespace StarlightRiver.Content.NPCs.Snow
 
 		public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
 		{
+			if (parent is null)
+				return false;
+
+			VerletChain Chain = (parent.ModNPC as Snoobel).trunkChain;
+
+			if (Chain is null)
+				return false;
+
 			bool ret = false;
 
 			float collisionPoint = 0f;
@@ -500,10 +537,10 @@ namespace StarlightRiver.Content.NPCs.Snow
 			return ret;
 		}
 
-		public override void ModifyHitPlayer(Player target, ref int damage, ref bool crit)
+		public override void ModifyHitPlayer(Player target, ref Player.HurtModifiers modifiers)
 		{
 			if ((parent.ModNPC as Snoobel).pulling)
-				damage /= 3;
+				modifiers.SourceDamage *= 0.33f;
 		}
 	}
 }

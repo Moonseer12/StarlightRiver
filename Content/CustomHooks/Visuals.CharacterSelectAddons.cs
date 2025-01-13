@@ -1,5 +1,4 @@
 ﻿using StarlightRiver.Content.Abilities;
-using StarlightRiver.Content.Codex;
 using StarlightRiver.Core.Systems.BarrierSystem;
 using System;
 using System.Collections.Generic;
@@ -27,15 +26,15 @@ namespace StarlightRiver.Content.CustomHooks
 			if (Main.dedServ)
 				return;
 
-			On.Terraria.GameContent.UI.Elements.UICharacterListItem.DrawSelf += DrawSpecialCharacter;
-			On.Terraria.GameContent.UI.Elements.UICharacterListItem.ctor += ShiftTextOver;
+			Terraria.GameContent.UI.Elements.On_UICharacterListItem.DrawSelf += DrawSpecialCharacter;
+			Terraria.GameContent.UI.Elements.On_UICharacterListItem.ctor += ShiftTextOver;
 
-			sparkles = new ParticleSystem(AssetDirectory.GUI + "Sparkle", updateSparkles);
+			sparkles = new ParticleSystem(AssetDirectory.GUI + "Sparkle", updateSparkles, ParticleSystem.AnchorOptions.UI);
 		}
 
 		public override void Unload()
 		{
-			sparkles = null;
+			sparkles ??= null;
 		}
 
 		private static void updateSparkles(Particle particle)
@@ -50,14 +49,14 @@ namespace StarlightRiver.Content.CustomHooks
 			particle.Rotation += 0.05f;
 		}
 
-		private void ShiftTextOver(On.Terraria.GameContent.UI.Elements.UICharacterListItem.orig_ctor orig, UICharacterListItem self, PlayerFileData data, int snapPointIndex)
+		private void ShiftTextOver(Terraria.GameContent.UI.Elements.On_UICharacterListItem.orig_ctor orig, UICharacterListItem self, PlayerFileData data, int snapPointIndex)
 		{
 			orig(self, data, snapPointIndex);
 
 			FieldInfo info = typeof(UICharacterListItem).GetField("_buttonLabel", BindingFlags.Instance | BindingFlags.NonPublic);
 			var text = info.GetValue(self) as UIText;
 
-			text.Left.Set(304, 0);
+			text.Left.Set(190, 0);
 
 			var character = (UICharacter)_PlayerPanel.GetValue(self);
 			var Player = (Player)_Player.GetValue(character);
@@ -73,7 +72,7 @@ namespace StarlightRiver.Content.CustomHooks
 			}
 		}
 
-		private void DrawSpecialCharacter(On.Terraria.GameContent.UI.Elements.UICharacterListItem.orig_DrawSelf orig, UICharacterListItem self, SpriteBatch spriteBatch)
+		private void DrawSpecialCharacter(Terraria.GameContent.UI.Elements.On_UICharacterListItem.orig_DrawSelf orig, UICharacterListItem self, SpriteBatch spriteBatch)
 		{
 			orig(self, spriteBatch);
 			var origin = new Vector2(self.GetDimensions().X, self.GetDimensions().Y);
@@ -83,51 +82,33 @@ namespace StarlightRiver.Content.CustomHooks
 
 			var Player = (Player)_Player.GetValue(character);
 			AbilityHandler mp = Player.GetHandler();
-			CodexHandler mp2 = Player.GetModPlayer<CodexHandler>();
 			MedalPlayer mp3 = Player.GetModPlayer<MedalPlayer>();
 
-			if (mp == null || mp2 == null)
-			{
+			if (mp == null || mp3 == null)
 				return;
-			}
 
 			for (int k = 0; k < Player.armor.Length; k++)
 			{
 				if (Player.armor[k].ModItem != null && Player.armor[k].ModItem.Mod.Name == StarlightRiver.Instance.Name)
-					Player.VanillaUpdateEquip(Player.armor[k]);
+					Player.GrantPrefixBenefits(Player.armor[k]);
 			}
 
 			float PlayerStamina = mp.StaminaMaxDefault;
-			int codexProgress = (int)(mp2.Entries.Count(n => !n.Locked) / (float)mp2.Entries.Count * 100f);
 
 			var box = new Rectangle((int)(origin + new Vector2(110, 66)).X, (int)(origin + new Vector2(86, 66)).Y, 80, 25);
 			var box2 = new Rectangle((int)(origin + new Vector2(196, 66)).X, (int)(origin + new Vector2(86, 66)).Y, 104, 25);
 
-			spriteBatch.Draw(ModContent.Request<Texture2D>("StarlightRiver/Assets/GUI/box").Value, box, Color.White); //Stamina box
-			spriteBatch.Draw(ModContent.Request<Texture2D>("StarlightRiver/Assets/GUI/box").Value, box2, Color.White); //Codex box
+			spriteBatch.Draw(Assets.GUI.box.Value, box, Color.White); //Stamina box
 
 			if (mp.AnyUnlocked)//Draw stamina if any unlocked
 			{
-				spriteBatch.Draw(ModContent.Request<Texture2D>("StarlightRiver/Assets/GUI/Stamina").Value, origin + new Vector2(115, 68), Color.White);
+				spriteBatch.Draw(Assets.GUI.Stamina.Value, origin + new Vector2(115, 68), Color.White);
 				Utils.DrawBorderString(spriteBatch, PlayerStamina + " SP", origin + new Vector2(142, 68), Color.White);
 			}
 			else//Myserious if locked
 			{
-				spriteBatch.Draw(ModContent.Request<Texture2D>("StarlightRiver/Assets/GUI/Stamina3").Value, origin + new Vector2(115, 68), Color.White);
+				spriteBatch.Draw(Assets.GUI.Stamina3.Value, origin + new Vector2(115, 68), Color.White);
 				Utils.DrawBorderString(spriteBatch, "???", origin + new Vector2(142, 68), Color.White);
-			}
-
-			if (mp2.CodexState != 0)//Draw codex percentage if unlocked
-			{
-				string bookTex = mp2.CodexState == 2 ? "StarlightRiver/Assets/GUI/Book2Closed" : "StarlightRiver/Assets/GUI/Book1Closed";
-				Texture2D drawTex = ModContent.Request<Texture2D>(bookTex).Value;
-				spriteBatch.Draw(drawTex, origin + new Vector2(202, 60), Color.White);
-				Utils.DrawBorderString(spriteBatch, codexProgress + "%", origin + new Vector2(236, 68), codexProgress >= 100 ? new Color(255, 205 + (int)(Math.Sin(Main.time / 50000 * 100) * 40), 50) : Color.White);
-			}
-			else//Mysterious if locked
-			{
-				spriteBatch.Draw(ModContent.Request<Texture2D>("StarlightRiver/Assets/GUI/BookLocked").Value, origin + new Vector2(202, 60), Color.White * 0.4f);
-				Utils.DrawBorderString(spriteBatch, "???", origin + new Vector2(236, 68), Color.White);
 			}
 
 			Ability[] abilities = Ability.GetAbilityInstances();
@@ -139,7 +120,7 @@ namespace StarlightRiver.Content.CustomHooks
 				string texture = Player.GetHandler().Unlocked(ability.GetType())
 					? ability.PreviewTexture
 					: ability.PreviewTextureOff;
-				spriteBatch.Draw(ModContent.Request<Texture2D>(texture).Value, origin + new Vector2(540 - k * 32, 64), Color.White);
+				spriteBatch.Draw(ModContent.Request<Texture2D>(texture).Value, origin + new Vector2(542 - k * 32, 64), Color.White);
 			}
 
 			if (Player.statLifeMax > 400) //why vanilla dosent do this I dont know
@@ -149,9 +130,9 @@ namespace StarlightRiver.Content.CustomHooks
 
 			if (Player.GetModPlayer<BarrierPlayer>().maxBarrier > 0)
 			{
-				Texture2D barrierTex = ModContent.Request<Texture2D>(AssetDirectory.GUI + "ShieldHeartOver").Value;
-				Texture2D barrierTex2 = ModContent.Request<Texture2D>(AssetDirectory.GUI + "ShieldHeart").Value;
-				Texture2D barrierTex3 = ModContent.Request<Texture2D>(AssetDirectory.GUI + "ShieldHeartLine").Value;
+				Texture2D barrierTex = Assets.GUI.ShieldHeartOver.Value;
+				Texture2D barrierTex2 = Assets.GUI.ShieldHeart.Value;
+				Texture2D barrierTex3 = Assets.GUI.ShieldHeartLine.Value;
 
 				Vector2 pos = origin + new Vector2(80, 37);
 				int width = barrierTex.Width / 2;
@@ -203,11 +184,10 @@ namespace StarlightRiver.Content.CustomHooks
 				Player.statLifeMax == 500 &&
 				Player.statManaMax == 200 &&
 				PlayerStamina == 5 &&
-				codexProgress == 100 &&
 				!abilities.Any(n => !Player.GetHandler().Unlocked(n.GetType()))
 				)
 			{
-				Texture2D borderTex = ModContent.Request<Texture2D>(AssetDirectory.GUI + "GoldBorder").Value;
+				Texture2D borderTex = Assets.GUI.GoldBorder.Value;
 				spriteBatch.Draw(borderTex, origin, Color.White);
 
 				if (Main.rand.NextBool(3))
